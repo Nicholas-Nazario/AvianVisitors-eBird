@@ -1,0 +1,8 @@
+{
+  "lat": 40.785091,
+  "lng": -73.968285,
+  "dist": 3,
+  "hotspot": true,
+  "back": 30,
+  "token": "YOUR_EBIRD_API_KEY"
+}

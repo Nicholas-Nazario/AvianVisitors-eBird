@@ -867,16 +867,57 @@
     return 'all time';
   }
 
+  // ---- eBird query prefs (menu drawer) ----
+  // Persisted in localStorage; sent as query params on every birdnet-api call.
+  var GEO_DEFAULTS = { lat: 40.785091, lng: -73.968285, dist: 3, refreshMs: 5 * 60 * 1000 };
+  var REFRESH_OPTS = [
+    { label: '1m', ms: 60 * 1000 },
+    { label: '5m', ms: 5 * 60 * 1000 },
+    { label: '15m', ms: 15 * 60 * 1000 },
+    { label: '1h', ms: 60 * 60 * 1000 },
+    { label: '1d', ms: 24 * 60 * 60 * 1000 },
+  ];
+  function loadGeo() {
+    var dist = parseInt(readLS('bird:dist', String(GEO_DEFAULTS.dist)), 10);
+    var refreshMs = parseInt(readLS('bird:refreshMs', String(GEO_DEFAULTS.refreshMs)), 10);
+    if (!REFRESH_OPTS.some(function (o) { return o.ms === refreshMs; })) {
+      refreshMs = GEO_DEFAULTS.refreshMs;
+    }
+    return {
+      lat: parseFloat(readLS('bird:lat', String(GEO_DEFAULTS.lat))) || GEO_DEFAULTS.lat,
+      lng: parseFloat(readLS('bird:lng', String(GEO_DEFAULTS.lng))) || GEO_DEFAULTS.lng,
+      dist: Math.max(1, Math.min(50, isNaN(dist) ? GEO_DEFAULTS.dist : dist)),
+      refreshMs: refreshMs,
+    };
+  }
+  function saveGeo() {
+    writeLS('bird:lat', String(GEO.lat));
+    writeLS('bird:lng', String(GEO.lng));
+    writeLS('bird:dist', String(GEO.dist));
+    writeLS('bird:refreshMs', String(GEO.refreshMs));
+  }
+  var GEO = loadGeo();
+  var forceRefreshOnce = false;
+
+  function birdApi(qs) {
+    var url = './avian/api/birdnet-api.php?' + qs
+      + '&lat=' + encodeURIComponent(GEO.lat)
+      + '&lng=' + encodeURIComponent(GEO.lng)
+      + '&dist=' + encodeURIComponent(GEO.dist);
+    if (forceRefreshOnce) url += '&refresh=1';
+    return url;
+  }
+
   // ---- Live Pi data layer ----
   // All views read from this DATA object. Populated by fetchAll() on page
   // load and by refreshRecent() when the window picker changes.
   var STATS_DAYS = 30;
   var DATA = {
-    stats: null,        // ./avian/api/birdnet-api.php?action=stats (totals/today/week/last_hour/started)
-    lifelist: null,     // ./avian/api/birdnet-api.php?action=lifelist (every species ever detected)
-    timeseries: null,   // ./avian/api/birdnet-api.php?action=timeseries (daily + hourly aggregates)
-    firstseen: null,    // ./avian/api/birdnet-api.php?action=firstseen (newest lifelist additions)
-    recent: null,       // ./avian/api/birdnet-api.php?action=recent&hours=N (refetched on picker change)
+    stats: null,        // birdApi('action=stats')
+    lifelist: null,     // birdApi('action=lifelist')
+    timeseries: null,   // birdApi('action=timeseries&days=30')
+    firstseen: null,    // birdApi('action=firstseen&limit=10')
+    recent: null,       // birdApi('action=recent&hours=N')
   };
 
   // Derived chart arrays, backfilled so 30 buckets always exist.
@@ -1392,22 +1433,24 @@
     // lands later - we discard the stale response so the collage
     // never reverts to a different window.
     var forHours = currentHours;
-    return fetchJson('./avian/api/birdnet-api.php?action=recent&hours=' + forHours)
+    return fetchJson(birdApi('action=recent&hours=' + forHours))
       .then(function (j) {
         if (forHours !== currentHours) return; // window changed mid-flight
         DATA.recent = j; renderWindowDependent(animate);
       })
       .catch(function (e) { console.warn('recent fetch failed', e); });
   }
-  function refreshAll(animate) {
+  function refreshAll(animate, force) {
     var forHours = currentHours;
+    if (force) forceRefreshOnce = true;
     return Promise.all([
-      fetchJson('./avian/api/birdnet-api.php?action=stats').catch(function () { return null; }),
-      fetchJson('./avian/api/birdnet-api.php?action=lifelist').catch(function () { return null; }),
-      fetchJson('./avian/api/birdnet-api.php?action=timeseries&days=30').catch(function () { return null; }),
-      fetchJson('./avian/api/birdnet-api.php?action=firstseen&limit=10').catch(function () { return null; }),
-      fetchJson('./avian/api/birdnet-api.php?action=recent&hours=' + forHours).catch(function () { return null; }),
+      fetchJson(birdApi('action=stats')).catch(function () { return null; }),
+      fetchJson(birdApi('action=lifelist')).catch(function () { return null; }),
+      fetchJson(birdApi('action=timeseries&days=30')).catch(function () { return null; }),
+      fetchJson(birdApi('action=firstseen&limit=10')).catch(function () { return null; }),
+      fetchJson(birdApi('action=recent&hours=' + forHours)).catch(function () { return null; }),
     ]).then(function (parts) {
+      forceRefreshOnce = false;
       DATA.stats = parts[0];
       DATA.lifelist = parts[1];
       DATA.timeseries = parts[2];
@@ -1418,7 +1461,7 @@
       recomputeDerived();
       renderTimeIndependent(animate);
       renderCollageFromData(animate);
-    });
+    }).finally(function () { forceRefreshOnce = false; });
   }
 
   // Kick off the initial fetch. Renders pull from DATA as soon as it
@@ -1433,27 +1476,22 @@
   });
 
   // ---- Realtime polling ----
-  // Every POLL_MS the page refetches the live data set so the collage,
-  // stats, and atlas reflect new detections without a manual reload.
-  // We use refreshAll() (cheap: 5 small JSON fetches) so the dependent
-  // text/charts update too. Polling pauses when the tab is hidden and
-  // resumes (with an immediate fetch) when it becomes visible again.
-  var POLL_MS = 30 * 1000;
+  // Interval comes from the menu refresh selector (1m / 5m / 15m / 1h / 1d).
+  // Polling pauses when the tab is hidden and resumes (with an immediate
+  // fetch) when it becomes visible again.
   var pollTimer = null;
   function startPolling() {
     stopPolling();
     pollTimer = setInterval(function () {
       if (document.hidden) return;
       refreshAll();
-    }, POLL_MS);
+    }, GEO.refreshMs);
   }
   function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
       stopPolling();
     } else {
-      // Force an immediate refresh on return so the user sees fresh
-      // data right away, then resume normal polling cadence.
       refreshAll();
       startPolling();
     }
@@ -1466,7 +1504,16 @@
   var locked = document.getElementById('dd-locked');
   var items = document.getElementById('dd-items');
   var lockHint = document.getElementById('lockHint');
-  function openDd() { dd.classList.add('open'); dd.setAttribute('aria-hidden', 'false'); setTimeout(function () { document.getElementById('lockPass').focus(); }, 100); }
+  function openDd() {
+    dd.classList.add('open');
+    dd.setAttribute('aria-hidden', 'false');
+    if (locked.style.display !== 'none') {
+      setTimeout(function () {
+        var pass = document.getElementById('lockPass');
+        if (pass) pass.focus();
+      }, 100);
+    }
+  }
   function closeDd() { dd.classList.remove('open'); dd.setAttribute('aria-hidden', 'true'); }
   function toggleDd() { dd.classList.contains('open') ? closeDd() : openDd(); }
   menuBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleDd(); });
@@ -1519,212 +1566,141 @@
     });
   });
 
-  // Render the unlocked drawer:
-  //   - inline LIVE AUDIO player (streams icecast through the worker tunnel)
-  //   - collapsible SETTINGS section (closed by default to avoid mis-clicks)
-  //   - small ADVANCED TOOLS grid for the rest of BirdNET-Pi (still
-  //     opens externally; rebuilding all of these in our design is on
-  //     the follow-up list)
+  // Render the unlocked drawer: eBird location + poll controls.
   function renderMenu(menu) {
     locked.style.display = 'none';
     items.classList.add('show');
-    var liveAudioIcon = '<svg viewBox="0 0 12 12" fill="currentColor"><path d="M3 2 L10 6 L3 10 Z"/></svg>';
-    var stopIcon = '<svg viewBox="0 0 12 12" fill="currentColor"><rect x="3" y="3" width="6" height="6"/></svg>';
-    var specOnIcon = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 9 L4 5 L6 8 L8 3 L10 7"/></svg>';
-    // Build the diagnostic shortcuts (system / logs / tools). With
-    // native:true they navigate in-page; otherwise they keep the old
-    // open-in-new-tab behavior for the legacy BirdNET-Pi screens.
-    var linksHtml = menu.map(function (it) {
+    var linksHtml = (menu || []).map(function (it) {
       var label = (it.label || '');
       var attrs = it.native ? '' : ' target="_blank" rel="noopener"';
       var cls = it.native ? '' : ' class="ext"';
       return '<a' + cls + ' href="' + it.href + '"' + attrs + '><span>' + label + '</span></a>';
     }).join('');
-    items.innerHTML =
-      '<div class="live-audio" id="liveAudio" data-on="false">'
-      + '  <div class="pulse"></div>'
-      + '  <div class="label">Live audio<span class="hint">stream from the mic</span></div>'
-      + '  <button type="button" id="liveAudioBtn">'
-      + liveAudioIcon + '<span>listen</span>'
-      + '  </button>'
-      + '</div>'
-      // Spectrogram canvas is always present; it stays a dark inert
-      // strip until the stream is on, then the FFT loop paints it in
-      // real time. No separate toggle.
-      + '<canvas class="live-spectro" id="liveSpectro" width="600" height="120" aria-label="live spectrogram"></canvas>'
-      + '<div class="live-status" id="liveStatus"></div>'
-      + '<div class="menu-links">' + linksHtml + '</div>';
 
-    // Clicking a nav link (settings / system / logs / tools) collapses the
-    // menu back into the button - it has opened (or navigated to) its page,
-    // so leaving the drawer open is just clutter. The listen button and the
-    // built-by / GitHub links deliberately DON'T close it (you stay in the
-    // drawer to keep the stream going; those links open a new tab).
+    var refreshBtns = REFRESH_OPTS.map(function (o) {
+      var cur = o.ms === GEO.refreshMs ? 'true' : 'false';
+      return '<button type="button" data-ms="' + o.ms + '" aria-current="' + cur + '">' + o.label + '</button>';
+    }).join('');
+
+    items.innerHTML =
+      '<div class="menu-geo" id="menuGeo">'
+      + '  <div class="menu-section">'
+      + '    <h3>Location</h3>'
+      + '    <div class="menu-row geo-coords">'
+      + '      <label class="geo-field"><span class="label">Latitude</span>'
+      + '        <input id="geoLat" type="number" step="any" inputmode="decimal" value="' + GEO.lat + '">'
+      + '      </label>'
+      + '      <label class="geo-field"><span class="label">Longitude</span>'
+      + '        <input id="geoLng" type="number" step="any" inputmode="decimal" value="' + GEO.lng + '">'
+      + '      </label>'
+      + '    </div>'
+      + '    <div class="slider-row">'
+      + '      <div class="head">'
+      + '        <div class="label-block"><span class="label">Distance</span>'
+      + '          <span class="hint">search radius in km (1–50)</span></div>'
+      + '        <span class="value" id="geoDistVal">' + GEO.dist + ' km</span>'
+      + '      </div>'
+      + '      <div class="slider-track">'
+      + '        <input id="geoDist" type="range" min="1" max="50" step="1" value="' + GEO.dist + '">'
+      + '      </div>'
+      + '    </div>'
+      + '  </div>'
+      + '  <div class="menu-section">'
+      + '    <h3>Refresh</h3>'
+      + '    <div class="menu-row">'
+      + '      <div><span class="label">Auto refresh</span>'
+      + '        <span class="hint">how often to pull eBird</span></div>'
+      + '      <div class="seg" id="geoRefreshSeg" role="tablist">'
+      + '        <i class="seg-pill" aria-hidden="true"></i>'
+      + refreshBtns
+      + '      </div>'
+      + '    </div>'
+      + '    <div class="menu-save-row">'
+      + '      <span class="save-state" id="geoStatus"></span>'
+      + '      <button type="button" id="geoRefreshBtn">refresh now</button>'
+      + '    </div>'
+      + '  </div>'
+      + '</div>'
+      + (linksHtml ? '<div class="menu-links">' + linksHtml + '</div>' : '');
+
     var menuLinks = items.querySelector('.menu-links');
     if (menuLinks) menuLinks.addEventListener('click', function (ev) {
       if (ev.target.closest('a')) closeDd();
     });
 
-    // Live audio + realtime spectrogram. The audio element and the
-    // FFT analyser share one AudioContext; once .play() is called the
-    // analyser starts painting the canvas via rAF. No timeout - we
-    // surface the natural error event or success ("playing") only.
-    var liveBox = document.getElementById('liveAudio');
-    var liveBtn = document.getElementById('liveAudioBtn');
-    var spectroEl = document.getElementById('liveSpectro');
-    var statusEl = document.getElementById('liveStatus');
-    var liveEl = null, audioCtx = null, srcNode = null, analyser = null;
-    var specRaf = null;
+    var latIn = document.getElementById('geoLat');
+    var lngIn = document.getElementById('geoLng');
+    var distIn = document.getElementById('geoDist');
+    var distVal = document.getElementById('geoDistVal');
+    var statusEl = document.getElementById('geoStatus');
+    var refreshBtn = document.getElementById('geoRefreshBtn');
+    var refreshSeg = document.getElementById('geoRefreshSeg');
 
-    function setStatus(msg, isErr) {
-      statusEl.textContent = msg || '';
-      statusEl.className = 'live-status' + (isErr ? ' err' : '');
+    function setStatus(msg) {
+      if (statusEl) statusEl.textContent = msg || '';
     }
-    function startAudio() {
-      // Create the Audio element and resolve on the first "playing"
-      // event (success). The browser will hang the network request
-      // open for an icecast stream - that's normal - and "playing"
-      // fires as soon as the first audio frame is decoded. We don't
-      // race a timeout because icecast can take 1-10s to warm up
-      // depending on tunnel + bitrate.
-      return new Promise(function (resolve, reject) {
-        liveEl = new Audio('/stream?t=' + Date.now());
-        // No crossOrigin - the stream is same-origin via the worker
-        // and crossOrigin='anonymous' would require CORS headers
-        // icecast doesn't send.
-        var settled = false;
-        liveEl.addEventListener('playing', function () {
-          if (settled) return;
-          settled = true; resolve();
-        });
-        liveEl.addEventListener('error', function () {
-          if (settled) return;
-          settled = true;
-          reject(new Error('stream error - check /#admin=system'));
-        });
-        audioClaim(stopAudio);   // stop any card / modal-recording audio
-        liveEl.play().catch(function (e) {
-          if (settled) return;
-          settled = true; reject(e);
-        });
-      });
-    }
-    function stopAudio() {
-      audioRelease(stopAudio);
-      if (specRaf) { cancelAnimationFrame(specRaf); specRaf = null; }
-      if (liveEl) { try { liveEl.pause(); } catch (e) { } liveEl.src = ''; liveEl = null; }
-      if (srcNode) { try { srcNode.disconnect(); } catch (e) { } srcNode = null; }
-      if (analyser) { try { analyser.disconnect(); } catch (e) { } analyser = null; }
-      liveBox.setAttribute('data-on', 'false');
-      liveBtn.innerHTML = liveAudioIcon + '<span>listen</span>';
-      // Clear the spectrogram canvas so it returns to its quiet state.
-      var ctx = spectroEl.getContext('2d');
-      ctx.fillStyle = getComputedStyle(document.documentElement)
-        .getPropertyValue('--paper-2').trim() || '#efe8d8';
-      ctx.fillRect(0, 0, spectroEl.width, spectroEl.height);
-    }
-    function attachSpectrogram() {
-      if (!liveEl) return;
-      if (!audioCtx) {
-        var Ctx = window.AudioContext || window.webkitAudioContext;
-        if (!Ctx) return;
-        audioCtx = new Ctx();
-      }
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      try {
-        srcNode = audioCtx.createMediaElementSource(liveEl);
-      } catch (e) {
-        // MediaElementSource throws if the Audio is already wired up
-        // (e.g. user toggled listen off then on). Best effort - let
-        // the audio still play, just skip the spectrogram.
+    function applyGeo(opts) {
+      opts = opts || {};
+      var lat = parseFloat(latIn.value);
+      var lng = parseFloat(lngIn.value);
+      var dist = parseInt(distIn.value, 10);
+      if (isNaN(lat) || isNaN(lng)) {
+        setStatus('invalid coordinates');
         return;
       }
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.7;
-      srcNode.connect(analyser);
-      analyser.connect(audioCtx.destination);
-      drawSpectrogram();
-    }
-    // Convert a CSS colour token (hex or rgb()) to [r,g,b] by letting the 2d
-    // context normalise whatever form the variable is authored in.
-    function toRGB(str, fallback) {
-      var c = spectroEl.getContext('2d');
-      c.fillStyle = fallback; c.fillStyle = str;   // invalid str leaves fallback
-      var s = c.fillStyle;
-      if (s.charAt(0) === '#') return [parseInt(s.substr(1, 2), 16), parseInt(s.substr(3, 2), 16), parseInt(s.substr(5, 2), 16)];
-      var m = s.match(/(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
-      return m ? [+m[1], +m[2], +m[3]] : [0, 0, 0];
-    }
-    function drawSpectrogram() {
-      var ctx = spectroEl.getContext('2d');
-      var W = spectroEl.width, H = spectroEl.height;
-      // Read palette tokens so the live spectrogram follows the theme - a
-      // charcoal ground with a light trace in dark mode, not a hardcoded
-      // light-mode ramp - matching the recording-row + card spectrograms.
-      var cs = getComputedStyle(document.documentElement);
-      var paper = cs.getPropertyValue('--paper-2').trim() || '#efe8d8';
-      var bg = toRGB(paper, '#efe8d8');
-      var fg = toRGB(cs.getPropertyValue('--ink').trim() || '#1a1612', '#1a1612');
-      ctx.fillStyle = paper;
-      ctx.fillRect(0, 0, W, H);
-      var bins = new Uint8Array(analyser.frequencyBinCount);
-      function tick() {
-        if (!analyser) return;
-        var img = ctx.getImageData(1, 0, W - 1, H);
-        ctx.putImageData(img, 0, 0);
-        ctx.clearRect(W - 1, 0, 1, H);
-        analyser.getByteFrequencyData(bins);
-        var n = bins.length;
-        var lo = Math.floor(n * 250 / 24000);
-        var hi = Math.floor(n * 12000 / 24000);
-        for (var y = 0; y < H; y++) {
-          var t = 1 - y / H;
-          var idx = Math.round(lo + (hi - lo) * Math.pow(t, 1.6));
-          var v = (bins[idx] || 0) / 255;
-          var e = v * v * (3 - 2 * v);
-          // Ground (paper) -> trace (ink) ramp, per the active theme.
-          var r = bg[0] + Math.round((fg[0] - bg[0]) * e);
-          var g = bg[1] + Math.round((fg[1] - bg[1]) * e);
-          var b = bg[2] + Math.round((fg[2] - bg[2]) * e);
-          ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
-          ctx.fillRect(W - 1, y, 1, 1);
-        }
-        specRaf = requestAnimationFrame(tick);
+      GEO.lat = lat;
+      GEO.lng = lng;
+      GEO.dist = Math.max(1, Math.min(50, isNaN(dist) ? GEO.dist : dist));
+      distIn.value = String(GEO.dist);
+      distVal.textContent = GEO.dist + ' km';
+      saveGeo();
+      if (opts.refresh !== false) {
+        setStatus('updating…');
+        refreshAll(true, true).then(function () { setStatus('updated'); });
       }
-      tick();
     }
 
-    // Paint the spectrogram in its quiet/initial state.
-    (function () {
-      var ctx = spectroEl.getContext('2d');
-      var paper = getComputedStyle(document.documentElement)
-        .getPropertyValue('--paper-2').trim() || '#efe8d8';
-      ctx.fillStyle = paper;
-      ctx.fillRect(0, 0, spectroEl.width, spectroEl.height);
-    })();
+    distIn.addEventListener('input', function () {
+      distVal.textContent = distIn.value + ' km';
+    });
+    distIn.addEventListener('change', function () { applyGeo(); });
+    latIn.addEventListener('change', function () { applyGeo(); });
+    lngIn.addEventListener('change', function () { applyGeo(); });
+    // Keep drawer open while editing.
+    [latIn, lngIn, distIn].forEach(function (el) {
+      el.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    });
 
-    liveBtn.addEventListener('click', function (ev) {
-      // Important: stop the click from propagating up to the
-      // document-level "click outside drawer" handler, which would
-      // close the dropdown.
-      ev.stopPropagation();
-      var on = liveBox.getAttribute('data-on') === 'true';
-      if (on) { setStatus(''); stopAudio(); return; }
-      liveBox.setAttribute('data-on', 'true');
-      liveBtn.innerHTML = stopIcon + '<span>stop</span>';
-      setStatus('connecting...');
-      startAudio()
-        .then(function () { setStatus('streaming from pi'); attachSpectrogram(); })
-        .catch(function (err) {
-          stopAudio();
-          var msg = (err && err.message) || 'stream unavailable';
-          if (msg.indexOf('NotAllowed') !== -1 || msg.indexOf('user') !== -1) {
-            setStatus('browser blocked autoplay - tap listen again', true);
-          } else {
-            setStatus(msg, true);
-          }
+    if (refreshSeg) {
+      syncPill(refreshSeg);
+      wireToggleAdvance(refreshSeg);
+      refreshSeg.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var btn = ev.target.closest('button[data-ms]');
+        if (!btn) return;
+        GEO.refreshMs = +btn.getAttribute('data-ms');
+        refreshSeg.querySelectorAll('button').forEach(function (b) {
+          b.setAttribute('aria-current', b === btn ? 'true' : 'false');
         });
+        syncPill(refreshSeg);
+        saveGeo();
+        startPolling();
+        setStatus('auto refresh set');
+      });
+    }
+
+    refreshBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      applyGeo({ refresh: false });
+      setStatus('refreshing…');
+      refreshBtn.disabled = true;
+      refreshAll(true, true).then(function () {
+        setStatus('updated');
+        refreshBtn.disabled = false;
+      }).catch(function () {
+        setStatus('refresh failed');
+        refreshBtn.disabled = false;
+      });
     });
   }
 
@@ -2113,7 +2089,7 @@
     // Species detail (lifelist row + every detection).
     var loadSpecies = SPECIES_CACHE[sci]
       ? Promise.resolve(SPECIES_CACHE[sci])
-      : fetchJson('./avian/api/birdnet-api.php?action=species&sci=' + encodeURIComponent(sci)).then(function (j) {
+      : fetchJson(birdApi('action=species&sci=' + encodeURIComponent(sci))).then(function (j) {
         SPECIES_CACHE[sci] = j;
         return j;
       });

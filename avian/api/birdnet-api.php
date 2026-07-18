@@ -1,186 +1,337 @@
 <?php
-// AvianVisitors - JSON facade over BirdNET-Pi's birds.db. Read-only.
-// Symlinked into the BirdNET-Pi Caddy site root at /avian/api/.
+// AvianVisitors - JSON facade over eBird recent geo observations.
 //
 // Endpoints (?action=...):
-//   stats       - totals (detections, unique species, today, last hour)
-//   lifelist    - every species with first_seen, last_seen, total_count
-//   recent      - &hours=N (default 24): species heard in the window
-//   species     - &sci=<sci_name>: per-species detail page
-//   timeseries  - &days=N: daily detection counts per species
-//   firstseen   - every species' earliest detection
+//   stats / lifelist / recent / species / timeseries / firstseen
 //
-// Default LAN deploy ships without auth. If you've exposed the Pi via
-// Cloudflare or a tunnel, add a Caddy `basic_auth` matcher around the
-// /avian/api/* path - see avian/forwarding/.
+// Config: avian/data/ebird.json (see ebird.example.json). Override token
+// with env EBIRD_API_KEY. Observations are cached briefly on disk so the
+// frontend's 30s poll does not hammer eBird.
 
 declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: public, max-age=30');
 
-// PHP resolves __DIR__ through symlinks to the realpath. This script
-// lives at $HOME/BirdNET-Pi/avian/api/birdnet-api.php (served via the
-// ${EXTRACTED}/avian symlink). dirname(..., 2) walks to the BirdNET-Pi
-// install root. Works under any username because we never bake the
-// home directory in. getenv('HOME') would resolve to /var/lib/caddy
-// under PHP-FPM (BirdNET-Pi runs it as the caddy user), so it can't
-// be relied on.
-$DB_PATH = dirname(__DIR__, 2) . '/scripts/birds.db';
+$DATA_DIR = dirname(__DIR__) . '/data';
+$CONFIG_PATH = "$DATA_DIR/ebird.json";
+$CACHE_TTL = 60; // seconds
 
-if (!file_exists($DB_PATH)) {
+$config = [
+    'lat' => 40.785091,
+    'lng' => -73.968285,
+    'dist' => 3,
+    'hotspot' => true,
+    'back' => 30, // days to pull from eBird (max 30); window filter is applied in PHP
+    'token' => '',
+];
+if (is_file($CONFIG_PATH)) {
+    $loaded = json_decode((string)file_get_contents($CONFIG_PATH), true);
+    if (is_array($loaded)) $config = array_merge($config, $loaded);
+}
+$token = getenv('EBIRD_API_KEY') ?: (string)($config['token'] ?? '');
+if ($token === '') {
     http_response_code(503);
-    echo json_encode(['error' => 'birds.db not found']);
+    echo json_encode(['error' => 'eBird API token missing — set avian/data/ebird.json or EBIRD_API_KEY']);
     exit;
 }
 
-try {
-    $db = new SQLite3($DB_PATH, SQLITE3_OPEN_READONLY);
-    $db->busyTimeout(2000);
-} catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'db open failed']);
-    exit;
+// Optional query overrides from the menu drawer (lat / lng / dist / refresh).
+if (isset($_GET['lat']) && is_numeric($_GET['lat'])) {
+    $config['lat'] = max(-90.0, min(90.0, (float)$_GET['lat']));
+}
+if (isset($_GET['lng']) && is_numeric($_GET['lng'])) {
+    $config['lng'] = max(-180.0, min(180.0, (float)$_GET['lng']));
+}
+if (isset($_GET['dist']) && is_numeric($_GET['dist'])) {
+    $config['dist'] = max(1, min(50, (int)$_GET['dist']));
+}
+$forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
+
+// Per-geo cache file so changing location doesn't serve the wrong birds.
+$CACHE_PATH = $DATA_DIR . '/ebird-cache-' . md5(json_encode([
+    round((float)$config['lat'], 5),
+    round((float)$config['lng'], 5),
+    (int)$config['dist'],
+    (int)($config['back'] ?? 30),
+])) . '.json';
+
+
+function parse_obs_dt(string $obsDt): ?int {
+    // eBird: "2026-07-18 10:46" (local wall time, no TZ).
+    $t = strtotime(str_replace(' ', 'T', $obsDt));
+    return $t === false ? null : $t;
 }
 
-function rows(SQLite3 $db, string $sql, array $bind = []): array {
-    $stmt = $db->prepare($sql);
-    foreach ($bind as $k => $v) $stmt->bindValue($k, $v);
-    $res = $stmt->execute();
+function fetch_ebird(array $config, string $token, string $cachePath, int $cacheTtl, bool $forceRefresh = false): array {
+    if (!$forceRefresh && is_file($cachePath)) {
+        $cached = json_decode((string)file_get_contents($cachePath), true);
+        if (is_array($cached)
+            && isset($cached['fetched_at'], $cached['obs'])
+            && (time() - (int)$cached['fetched_at']) < $cacheTtl
+            && is_array($cached['obs'])) {
+            return $cached['obs'];
+        }
+    }
+
+    $back = max(1, min(30, (int)($config['back'] ?? 30)));
+    $query = http_build_query([
+        'lat' => $config['lat'],
+        'lng' => $config['lng'],
+        'dist' => $config['dist'],
+        'sort' => 'date',
+        'hotspot' => !empty($config['hotspot']) ? 'true' : 'false',
+        'back' => $back,
+    ]);
+    $url = 'https://api.ebird.org/v2/data/obs/geo/recent?' . $query;
+
+    $ctx = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'header' => "X-eBirdApiToken: $token\r\nAccept: application/json\r\n",
+            'timeout' => 20,
+            'ignore_errors' => true,
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $ctx);
+    $status = 0;
+    $respHeaders = function_exists('http_get_last_response_headers')
+        ? http_get_last_response_headers()
+        : ($http_response_header ?? null);
+    if (is_array($respHeaders) && isset($respHeaders[0]) && preg_match('/\s(\d{3})\s/', $respHeaders[0], $m)) {
+        $status = (int)$m[1];
+    }
+    if ($raw === false || $status >= 400) {
+        // Serve stale cache if present rather than hard-failing the collage.
+        if (is_file($cachePath)) {
+            $cached = json_decode((string)file_get_contents($cachePath), true);
+            if (is_array($cached) && is_array($cached['obs'] ?? null)) {
+                return $cached['obs'];
+            }
+        }
+        http_response_code(502);
+        echo json_encode(['error' => 'eBird fetch failed', 'status' => $status]);
+        exit;
+    }
+    $obs = json_decode($raw, true);
+    if (!is_array($obs)) {
+        http_response_code(502);
+        echo json_encode(['error' => 'eBird returned invalid JSON']);
+        exit;
+    }
+
+    @file_put_contents($cachePath, json_encode([
+        'fetched_at' => time(),
+        'obs' => $obs,
+    ]));
+    return $obs;
+}
+
+function filter_by_hours(array $obs, int $hours): array {
+    $cutoff = time() - ($hours * 3600);
     $out = [];
-    while ($r = $res->fetchArray(SQLITE3_ASSOC)) $out[] = $r;
+    foreach ($obs as $row) {
+        if (!is_array($row)) continue;
+        $ts = parse_obs_dt((string)($row['obsDt'] ?? ''));
+        if ($ts === null) continue;
+        if ($ts >= $cutoff) $out[] = $row;
+    }
     return $out;
 }
-function one(SQLite3 $db, string $sql, array $bind = []) {
-    $r = rows($db, $sql, $bind);
-    return $r[0] ?? null;
+
+/** Collapse checklist rows → one species record for the collage. */
+function aggregate_species(array $obs): array {
+    $by = [];
+    foreach ($obs as $row) {
+        $sci = trim((string)($row['sciName'] ?? ''));
+        if ($sci === '') continue;
+        $com = trim((string)($row['comName'] ?? $sci));
+        $n = isset($row['howMany']) ? max(1, (int)$row['howMany']) : 1;
+        $dt = (string)($row['obsDt'] ?? '');
+        if (!isset($by[$sci])) {
+            $by[$sci] = [
+                'sci' => $sci,
+                'com' => $com,
+                'n' => 0,
+                'last_seen' => $dt,
+                'first_seen' => $dt,
+                'best_conf' => null,
+                'top_file' => null,
+                'top_at' => $dt,
+            ];
+        }
+        $by[$sci]['n'] += $n;
+        if ($com !== '') $by[$sci]['com'] = $com;
+        if ($dt !== '' && ($by[$sci]['last_seen'] === '' || strcmp($dt, $by[$sci]['last_seen']) > 0)) {
+            $by[$sci]['last_seen'] = $dt;
+            $by[$sci]['top_at'] = $dt;
+        }
+        if ($dt !== '' && ($by[$sci]['first_seen'] === '' || strcmp($dt, $by[$sci]['first_seen']) < 0)) {
+            $by[$sci]['first_seen'] = $dt;
+        }
+    }
+    $list = array_values($by);
+    usort($list, function ($a, $b) {
+        return strcmp($b['last_seen'], $a['last_seen']);
+    });
+    return $list;
 }
 
+$allObs = fetch_ebird($config, $token, $CACHE_PATH, $CACHE_TTL, $forceRefresh);
 $action = $_GET['action'] ?? 'stats';
 
 switch ($action) {
 
     case 'stats': {
-        $total       = (int)(one($db, 'SELECT COUNT(*) AS n FROM detections')['n'] ?? 0);
-        $species     = (int)(one($db, 'SELECT COUNT(DISTINCT Sci_Name) AS n FROM detections')['n'] ?? 0);
-        $today       = (int)(one($db, "SELECT COUNT(*) AS n FROM detections WHERE Date = DATE('now','localtime')")['n'] ?? 0);
-        $todaySpec   = (int)(one($db, "SELECT COUNT(DISTINCT Sci_Name) AS n FROM detections WHERE Date = DATE('now','localtime')")['n'] ?? 0);
-        $lastHour    = (int)(one($db, "SELECT COUNT(*) AS n FROM detections WHERE Date = DATE('now','localtime') AND Time >= TIME('now','localtime','-1 hour')")['n'] ?? 0);
-        $week        = (int)(one($db, "SELECT COUNT(*) AS n FROM detections WHERE Date >= DATE('now','localtime','-7 day')")['n'] ?? 0);
-        $weekSpec    = (int)(one($db, "SELECT COUNT(DISTINCT Sci_Name) AS n FROM detections WHERE Date >= DATE('now','localtime','-7 day')")['n'] ?? 0);
-        $first       = one($db, 'SELECT MIN(Date) AS d FROM detections');
+        $day = filter_by_hours($allObs, 24);
+        $hour = filter_by_hours($allObs, 1);
+        $week = filter_by_hours($allObs, 168);
+        $allAgg = aggregate_species($allObs);
+        $dayAgg = aggregate_species($day);
+        $weekAgg = aggregate_species($week);
+        $started = null;
+        foreach ($allAgg as $s) {
+            if ($started === null || strcmp($s['first_seen'], $started) < 0) {
+                $started = substr($s['first_seen'], 0, 10);
+            }
+        }
+        $det = function (array $obs): int {
+            $n = 0;
+            foreach ($obs as $r) $n += isset($r['howMany']) ? max(1, (int)$r['howMany']) : 1;
+            return $n;
+        };
         echo json_encode([
-            'totals'    => ['detections' => $total, 'species' => $species],
-            'today'     => ['detections' => $today, 'species' => $todaySpec],
-            'last_hour' => ['detections' => $lastHour],
-            'week'      => ['detections' => $week,  'species' => $weekSpec],
-            'started'   => $first['d'] ?? null,
+            'totals'    => ['detections' => $det($allObs), 'species' => count($allAgg)],
+            'today'     => ['detections' => $det($day), 'species' => count($dayAgg)],
+            'last_hour' => ['detections' => $det($hour)],
+            'week'      => ['detections' => $det($week), 'species' => count($weekAgg)],
+            'started'   => $started,
             'as_of'     => date('c'),
+            'source'    => 'ebird',
         ]);
         break;
     }
 
     case 'lifelist': {
-        // n = total calls (matches the `recent` action's alias so the
-        // frontend can read either response interchangeably).
-        $rs = rows($db,
-          "SELECT Sci_Name AS sci, Com_Name AS com, MIN(Date||' '||Time) AS first_seen, "
-        . "       MAX(Date||' '||Time) AS last_seen, COUNT(*) AS n, MAX(Confidence) AS best_conf "
-        . "FROM detections GROUP BY Sci_Name ORDER BY first_seen ASC"
-        );
-        echo json_encode(['species' => $rs, 'as_of' => date('c')]);
+        $rs = aggregate_species($allObs);
+        usort($rs, function ($a, $b) {
+            return strcmp($a['first_seen'], $b['first_seen']);
+        });
+        echo json_encode(['species' => $rs, 'as_of' => date('c'), 'source' => 'ebird']);
         break;
     }
 
     case 'recent': {
-        // Cap raised to 1,000,000 hours (~114 years) so the frontend's
-        // "ALL" button can turn off the time filter without needing a
-        // separate code path.
         $hours = max(1, min(1000000, (int)($_GET['hours'] ?? 24)));
-        // species-collapsed view: one row per species seen in the window,
-        // with the file of its highest-confidence detection inside the window.
-        $rs = rows($db,
-          "SELECT Sci_Name AS sci, Com_Name AS com, COUNT(*) AS n, MAX(Confidence) AS best_conf, "
-        . "       MAX(Date||' '||Time) AS last_seen "
-        . "FROM detections "
-        . "WHERE (julianday('now','localtime') - julianday(Date||' '||Time)) * 24 <= :hrs "
-        . "GROUP BY Sci_Name ORDER BY last_seen DESC",
-          [':hrs' => $hours]
-        );
-        // for each row, attach the file of the top-confidence detection in the window
-        foreach ($rs as &$r) {
-            $best = one($db,
-              "SELECT File_Name AS file, Date AS d, Time AS t, Confidence AS conf "
-            . "FROM detections "
-            . "WHERE Sci_Name = :sn "
-            . "AND (julianday('now','localtime') - julianday(Date||' '||Time)) * 24 <= :hrs "
-            . "ORDER BY Confidence DESC LIMIT 1",
-              [':sn' => $r['sci'], ':hrs' => $hours]
-            );
-            $r['top_file'] = $best['file'] ?? null;
-            $r['top_at']   = isset($best['d']) ? ($best['d'].' '.$best['t']) : null;
-        }
-        echo json_encode(['hours' => $hours, 'species' => $rs, 'as_of' => date('c')]);
+        // eBird only retains ~30 days on this endpoint; ALL still caps there.
+        $windowHours = min($hours, 30 * 24);
+        $rs = aggregate_species(filter_by_hours($allObs, $windowHours));
+        echo json_encode([
+            'hours' => $hours,
+            'species' => $rs,
+            'as_of' => date('c'),
+            'source' => 'ebird',
+        ]);
         break;
     }
 
     case 'species': {
         $sci = $_GET['sci'] ?? '';
-        if ($sci === '') { http_response_code(400); echo json_encode(['error' => 'sci= required']); break; }
-        $detections = rows($db,
-          "SELECT Date AS d, Time AS t, File_Name AS file, Confidence AS conf "
-        . "FROM detections WHERE Sci_Name = :sn ORDER BY Date DESC, Time DESC LIMIT 500",
-          [':sn' => $sci]
-        );
-        $summary = one($db,
-          "SELECT Com_Name AS com, COUNT(*) AS total, MIN(Date||' '||Time) AS first_seen, "
-        . "       MAX(Date||' '||Time) AS last_seen, MAX(Confidence) AS best_conf "
-        . "FROM detections WHERE Sci_Name = :sn",
-          [':sn' => $sci]
-        );
-        echo json_encode(['sci' => $sci, 'summary' => $summary, 'detections' => $detections]);
+        if ($sci === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'sci= required']);
+            break;
+        }
+        $mine = array_values(array_filter($allObs, function ($r) use ($sci) {
+            return is_array($r) && ($r['sciName'] ?? '') === $sci;
+        }));
+        usort($mine, function ($a, $b) {
+            return strcmp((string)($b['obsDt'] ?? ''), (string)($a['obsDt'] ?? ''));
+        });
+        $detections = [];
+        foreach (array_slice($mine, 0, 500) as $r) {
+            $dt = (string)($r['obsDt'] ?? '');
+            $parts = explode(' ', $dt, 2);
+            $detections[] = [
+                'd' => $parts[0] ?? '',
+                't' => $parts[1] ?? '00:00',
+                'file' => null,
+                'conf' => null,
+                'howMany' => isset($r['howMany']) ? (int)$r['howMany'] : 1,
+                'locName' => $r['locName'] ?? null,
+            ];
+        }
+        $agg = aggregate_species($mine);
+        $summary = $agg[0] ?? null;
+        if ($summary) {
+            $summary = [
+                'com' => $summary['com'],
+                'total' => $summary['n'],
+                'first_seen' => $summary['first_seen'],
+                'last_seen' => $summary['last_seen'],
+                'best_conf' => null,
+            ];
+        }
+        echo json_encode(['sci' => $sci, 'summary' => $summary, 'detections' => $detections, 'source' => 'ebird']);
         break;
     }
 
     case 'timeseries': {
-        // Aggregated time-bucketed counts for the stats charts.
-        //   daily   - last $days days, detections + unique species per day
-        //   by_hour - detections grouped by hour of day, last 30 days
-        // The frontend backfills missing dates with zero - sparse data days
-        // are otherwise dropped by the GROUP BY.
         $days = max(1, min(90, (int)($_GET['days'] ?? 30)));
-        $daily = rows($db,
-          "SELECT Date AS date, COUNT(*) AS detections, COUNT(DISTINCT Sci_Name) AS species "
-        . "FROM detections "
-        . "WHERE Date >= DATE('now','localtime','-".($days - 1)." day') "
-        . "GROUP BY Date ORDER BY Date"
-        );
-        $by_hour = rows($db,
-          "SELECT CAST(strftime('%H', Time) AS INT) AS hour, COUNT(*) AS detections "
-        . "FROM detections "
-        . "WHERE Date >= DATE('now','localtime','-30 day') "
-        . "GROUP BY hour ORDER BY hour"
-        );
+        $window = filter_by_hours($allObs, $days * 24);
+        $byDate = [];
+        $byHour = array_fill(0, 24, 0);
+        foreach ($window as $r) {
+            $dt = (string)($r['obsDt'] ?? '');
+            $ts = parse_obs_dt($dt);
+            if ($ts === null) continue;
+            $date = substr($dt, 0, 10);
+            $hour = (int)date('G', $ts);
+            $n = isset($r['howMany']) ? max(1, (int)$r['howMany']) : 1;
+            if (!isset($byDate[$date])) $byDate[$date] = ['detections' => 0, 'species' => []];
+            $byDate[$date]['detections'] += $n;
+            $sci = (string)($r['sciName'] ?? '');
+            if ($sci !== '') $byDate[$date]['species'][$sci] = true;
+            $byHour[$hour] += $n;
+        }
+        $daily = [];
+        ksort($byDate);
+        foreach ($byDate as $date => $row) {
+            $daily[] = [
+                'date' => $date,
+                'detections' => $row['detections'],
+                'species' => count($row['species']),
+            ];
+        }
+        $by_hour = [];
+        foreach ($byHour as $h => $n) {
+            if ($n > 0) $by_hour[] = ['hour' => $h, 'detections' => $n];
+        }
         echo json_encode([
-            'days'    => $days,
-            'daily'   => $daily,
+            'days' => $days,
+            'daily' => $daily,
             'by_hour' => $by_hour,
-            'as_of'   => date('c'),
+            'as_of' => date('c'),
+            'source' => 'ebird',
         ]);
         break;
     }
 
     case 'firstseen': {
-        // Most recent additions to the life list - first detection per
-        // species, sorted by first_seen DESC. Powers the "First Detections"
-        // section on the stats view.
         $limit = max(1, min(50, (int)($_GET['limit'] ?? 10)));
-        $rs = rows($db,
-          "SELECT Sci_Name AS sci, Com_Name AS com, MIN(Date||' '||Time) AS first_seen, "
-        . "       COUNT(*) AS total "
-        . "FROM detections GROUP BY Sci_Name ORDER BY first_seen DESC LIMIT :lim",
-          [':lim' => $limit]
-        );
-        echo json_encode(['species' => $rs, 'as_of' => date('c')]);
+        $rs = aggregate_species($allObs);
+        usort($rs, function ($a, $b) {
+            return strcmp($b['first_seen'], $a['first_seen']);
+        });
+        $out = [];
+        foreach (array_slice($rs, 0, $limit) as $s) {
+            $out[] = [
+                'sci' => $s['sci'],
+                'com' => $s['com'],
+                'first_seen' => $s['first_seen'],
+                'total' => $s['n'],
+            ];
+        }
+        echo json_encode(['species' => $out, 'as_of' => date('c'), 'source' => 'ebird']);
         break;
     }
 

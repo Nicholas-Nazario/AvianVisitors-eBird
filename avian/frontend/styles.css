@@ -391,69 +391,63 @@
     box-shadow: var(--raised);
   }
 
-  /* Inline live-audio player - sits at the top of the unlocked drawer.
-     A single play/stop button with a quiet running-indicator dot. */
-  .live-audio {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px; margin: 0 0 6px;
-    background: var(--paper-2); border-radius: 8px;
+  /* eBird location + refresh controls (replaces live-audio drawer) */
+  .menu-geo .menu-section { margin-top: 10px; }
+  .menu-geo .menu-section:first-child { margin-top: 0; }
+  .menu-row.geo-coords {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-items: stretch;
+    padding: 4px 6px 10px 10px;
+  }
+  .menu-row.geo-coords + .slider-row {
+    box-shadow: inset 0 1px 0 rgba(26,22,18,0.06);
+  }
+  .geo-field {
+    display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  }
+  .geo-field .label {
+    font: 12.5px ui-serif, Georgia, serif; color: var(--ink);
+  }
+  .geo-field input {
+    width: 100%; box-sizing: border-box;
+    background: var(--paper-2); border: 0; border-radius: 6px;
     box-shadow: var(--recess);
+    color: var(--ink); padding: 8px 10px;
+    font: 12px ui-monospace, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
   }
-  .live-audio .pulse {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--ink-soft); flex-shrink: 0;
-    transition: background 200ms ease;
+  .geo-field input:focus { outline: 1px solid var(--ink-soft); }
+  .menu-geo .menu-row .seg {
+    flex-wrap: wrap; justify-content: flex-end; max-width: 100%;
   }
-  .live-audio[data-on="true"] .pulse {
-    background: #c44a3b;
-    animation: pulsate 1.6s ease-in-out infinite;
+  .menu-geo .menu-row:has(.seg) {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    align-items: start;
   }
-  @keyframes pulsate {
-    0%, 100% { opacity: 0.4; transform: scale(1); }
-    50%      { opacity: 1;   transform: scale(1.25); }
+  .menu-geo .menu-row .seg button {
+    padding: 6px 8px; letter-spacing: 0.08em;
   }
-  .live-audio .label {
-    flex: 1; font: 12.5px ui-serif, Georgia, serif; color: var(--ink);
+  .menu-geo .menu-save-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 8px 6px 4px 10px;
   }
-  .live-audio .label .hint {
-    font: 9px ui-monospace, Menlo, monospace; color: var(--ink-soft);
-    letter-spacing: 0.04em;
+  .menu-geo .menu-save-row .save-state {
+    font: 9.5px ui-monospace, Menlo, monospace;
+    color: var(--ink-soft); letter-spacing: 0.04em;
+    min-height: 1em;
   }
-  .live-audio button {
+  .menu-geo .menu-save-row button {
     background: var(--paper); border: 0; color: var(--ink);
-    padding: 6px 12px; border-radius: 4px;
+    padding: 8px 14px; border-radius: 6px;
     font: 9.5px ui-monospace, Menlo, monospace;
     letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer;
     box-shadow: var(--raised);
-    display: inline-flex; align-items: center; gap: 6px;
   }
-  .live-audio button svg { width: 9px; height: 9px; }
-  .live-audio button + button { margin-left: 4px; }
-  /* Live spectrogram - hidden until the user clicks LISTEN. We
-     collapse via max-height (not display:none) so the canvas inside
-     keeps its layout dimensions and paints correctly on expand. */
-  .live-spectro {
-    width: 100%; height: 0;
-    background: var(--paper-2); border-radius: 6px;
-    margin: 0; overflow: hidden;
-    box-shadow: var(--recess);
-    transition: height 240ms cubic-bezier(.7,.05,.2,1), margin 240ms ease;
-  }
-  .live-audio[data-on="true"] + .live-spectro {
-    height: 70px; margin: 0 0 8px;
-  }
-  .live-status {
-    font: 9.5px ui-monospace, Menlo, monospace; color: var(--ink-soft);
-    letter-spacing: 0.04em; text-transform: lowercase;
-    margin: -4px 0 6px 0; padding: 0 4px;
-    min-height: 13px;
-  }
-  .live-status.err { color: #a83a2d; }
-  .menu-links a .l-hint {
-    display: block; font: 8.5px ui-serif, Georgia, serif; text-transform: none;
-    letter-spacing: 0; color: var(--ink-soft); margin-top: 2px;
-  }
-  .menu-links a.full { grid-column: 1 / -1; }
+  .menu-geo .menu-save-row button:hover { color: var(--accent); }
+  .menu-geo .menu-save-row button:disabled { opacity: 0.5; cursor: default; }
 
   /* External BirdNET pages - small grid of cards */
   .menu-links {
