@@ -1359,6 +1359,7 @@
   function closeDd() { dd.classList.remove('open'); dd.setAttribute('aria-hidden', 'true'); }
   function toggleDd() { dd.classList.contains('open') ? closeDd() : openDd(); }
   menuBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleDd(); });
+  staticLocation.addEventListener('click', function (e) { e.stopPropagation(); openDd(); });
   document.addEventListener('click', function (e) { if (!dd.contains(e.target) && e.target !== menuBtn) closeDd(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDd(); });
 
