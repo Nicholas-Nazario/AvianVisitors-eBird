@@ -849,7 +849,7 @@
 
   // ---- eBird query prefs (menu drawer) ----
   // Persisted in localStorage; sent as query params on every birdnet-api call.
-  var GEO_DEFAULTS = { lat: 40.785091, lng: -73.968285, dist: 3, refreshMs: 5 * 60 * 1000 };
+  var GEO_DEFAULTS = { lat: 40.785091, lng: -73.968285, dist: 3, mode: 'geo', regionCode: '', refreshMs: 5 * 60 * 1000 };
   var REFRESH_OPTS = [
     { label: '1m', ms: 60 * 1000 },
     { label: '5m', ms: 5 * 60 * 1000 },
@@ -863,10 +863,13 @@
     if (!REFRESH_OPTS.some(function (o) { return o.ms === refreshMs; })) {
       refreshMs = GEO_DEFAULTS.refreshMs;
     }
+    var mode = readLS('bird:sourceMode', GEO_DEFAULTS.mode);
     return {
       lat: parseFloat(readLS('bird:lat', String(GEO_DEFAULTS.lat))) || GEO_DEFAULTS.lat,
       lng: parseFloat(readLS('bird:lng', String(GEO_DEFAULTS.lng))) || GEO_DEFAULTS.lng,
       dist: Math.max(1, Math.min(50, isNaN(dist) ? GEO_DEFAULTS.dist : dist)),
+      mode: mode === 'hotspot' ? 'hotspot' : 'geo',
+      regionCode: readLS('bird:regionCode', ''),
       refreshMs: refreshMs,
     };
   }
@@ -874,6 +877,8 @@
     writeLS('bird:lat', String(GEO.lat));
     writeLS('bird:lng', String(GEO.lng));
     writeLS('bird:dist', String(GEO.dist));
+    writeLS('bird:sourceMode', GEO.mode);
+    writeLS('bird:regionCode', GEO.regionCode || '');
     writeLS('bird:refreshMs', String(GEO.refreshMs));
   }
   var GEO = loadGeo();
@@ -883,7 +888,11 @@
     var url = './avian/api/birdnet-api.php?' + qs
       + '&lat=' + encodeURIComponent(GEO.lat)
       + '&lng=' + encodeURIComponent(GEO.lng)
-      + '&dist=' + encodeURIComponent(GEO.dist);
+      + '&dist=' + encodeURIComponent(GEO.dist)
+      + '&mode=' + encodeURIComponent(GEO.mode);
+    if (GEO.mode === 'hotspot' && GEO.regionCode) {
+      url += '&regionCode=' + encodeURIComponent(GEO.regionCode);
+    }
     if (forceRefreshOnce) url += '&refresh=1';
     return url;
   }
@@ -1392,6 +1401,10 @@
   function renderMenu(menu) {
     locked.style.display = 'none';
     items.classList.add('show');
+    var geoEsc = function (s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
     var linksHtml = (menu || []).map(function (it) {
       var label = (it.label || '');
       var attrs = it.native ? '' : ' target="_blank" rel="noopener"';
@@ -1403,11 +1416,31 @@
       var cur = o.ms === GEO.refreshMs ? 'true' : 'false';
       return '<button type="button" data-ms="' + o.ms + '" aria-current="' + cur + '">' + o.label + '</button>';
     }).join('');
+    var sourceBtns = [
+      ['geo', 'distance'],
+      ['hotspot', 'hotspot'],
+    ].map(function (source) {
+      return '<button type="button" data-source="' + source[0] + '" aria-current="'
+        + (GEO.mode === source[0] ? 'true' : 'false') + '">' + source[1] + '</button>';
+    }).join('');
+    var hotspotControls = GEO.mode === 'hotspot'
+      ? '    <div class="menu-row hotspot-row">'
+        + '      <div class="label-block"><span class="label">Hotspot</span>'
+        + '        <span class="hint">choose a location in this search area</span></div>'
+        + '      <select id="hotspotSelect" disabled><option value="">loading hotspots…</option></select>'
+        + '      <button type="button" id="findHotspots">find hotspots</button>'
+        + '    </div>'
+      : '';
 
     items.innerHTML =
       '<div class="menu-geo" id="menuGeo">'
       + '  <div class="menu-section">'
       + '    <h3>Location</h3>'
+      + '    <div class="menu-row source-row">'
+      + '      <div><span class="label">Bird source</span>'
+      + '        <span class="hint">search by distance or by eBird hotspot</span></div>'
+      + '      <div class="seg" id="geoSourceSeg" role="tablist"><i class="seg-pill" aria-hidden="true"></i>' + sourceBtns + '</div>'
+      + '    </div>'
       + '    <div class="menu-row geo-coords">'
       + '      <label class="geo-field"><span class="label">Latitude</span>'
       + '        <input id="geoLat" type="number" step="any" inputmode="decimal" value="' + GEO.lat + '">'
@@ -1426,6 +1459,7 @@
       + '        <input id="geoDist" type="range" min="1" max="50" step="1" value="' + GEO.dist + '">'
       + '      </div>'
       + '    </div>'
+      + hotspotControls
       + '  </div>'
       + '  <div class="menu-section">'
       + '    <h3>Refresh</h3>'
@@ -1457,6 +1491,9 @@
     var statusEl = document.getElementById('geoStatus');
     var refreshBtn = document.getElementById('geoRefreshBtn');
     var refreshSeg = document.getElementById('geoRefreshSeg');
+    var sourceSeg = document.getElementById('geoSourceSeg');
+    var hotspotSelect = document.getElementById('hotspotSelect');
+    var findHotspotsBtn = document.getElementById('findHotspots');
 
     function setStatus(msg) {
       if (statusEl) statusEl.textContent = msg || '';
@@ -1476,10 +1513,59 @@
       distIn.value = String(GEO.dist);
       distVal.textContent = GEO.dist + ' km';
       saveGeo();
+      if (GEO.mode === 'hotspot') {
+        GEO.regionCode = '';
+        saveGeo();
+        if (opts.hotspots !== false) loadHotspots();
+        setStatus('select a hotspot');
+        return true;
+      }
       if (opts.refresh !== false) {
         setStatus('updating…');
         refreshAll(true, true).then(function () { setStatus('updated'); });
       }
+      return true;
+    }
+
+    function loadHotspots(force) {
+      if (!hotspotSelect) return;
+      // Keep the sort anchored to the same coordinates sent to eBird, even
+      // if the user edits a field while the hotspot request is in flight.
+      var originLat = GEO.lat * Math.PI / 180;
+      var originLng = GEO.lng * Math.PI / 180;
+      function distanceFromOrigin(h) {
+        var lat = parseFloat(h.lat), lng = parseFloat(h.lng);
+        if (isNaN(lat) || isNaN(lng)) return Infinity;
+        var dLat = lat * Math.PI / 180 - originLat;
+        var dLng = lng * Math.PI / 180 - originLng;
+        var a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+          + Math.cos(originLat) * Math.cos(lat * Math.PI / 180)
+          * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      }
+      hotspotSelect.disabled = true;
+      hotspotSelect.innerHTML = '<option value="">loading hotspots…</option>';
+      if (findHotspotsBtn) findHotspotsBtn.disabled = true;
+      var url = birdApi('action=hotspots') + (force ? '&refresh=1' : '');
+      fetchJson(url).then(function (data) {
+        var hotspots = ((data && data.hotspots) || []).slice().sort(function (a, b) {
+          var byDistance = distanceFromOrigin(a) - distanceFromOrigin(b);
+          return byDistance || String(a.locName || '').localeCompare(String(b.locName || ''));
+        });
+        hotspotSelect.innerHTML = '<option value="">select a hotspot</option>' + hotspots.map(function (h) {
+          var id = h.locId || '';
+          return '<option value="' + geoEsc(id) + '"' + (id === GEO.regionCode ? ' selected' : '') + '>'
+            + geoEsc(h.locName || id) + '</option>';
+        }).join('');
+        hotspotSelect.disabled = hotspots.length === 0;
+        if (!hotspots.length) setStatus('no hotspots found');
+        else if (!GEO.regionCode) setStatus('select a hotspot');
+      }).catch(function () {
+        hotspotSelect.innerHTML = '<option value="">unable to load hotspots</option>';
+        setStatus('hotspot search failed');
+      }).finally(function () {
+        if (findHotspotsBtn) findHotspotsBtn.disabled = false;
+      });
     }
 
     distIn.addEventListener('input', function () {
@@ -1492,6 +1578,37 @@
     [latIn, lngIn, distIn].forEach(function (el) {
       el.addEventListener('click', function (ev) { ev.stopPropagation(); });
     });
+
+    if (sourceSeg) {
+      syncPill(sourceSeg);
+      sourceSeg.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var btn = ev.target.closest('button[data-source]');
+        if (!btn || btn.dataset.source === GEO.mode) return;
+        GEO.mode = btn.dataset.source;
+        saveGeo();
+        renderMenu(menu);
+        if (GEO.mode === 'geo') refreshAll(true, true);
+      });
+    }
+    if (hotspotSelect) {
+      hotspotSelect.addEventListener('change', function (ev) {
+        ev.stopPropagation();
+        GEO.regionCode = hotspotSelect.value;
+        saveGeo();
+        if (!GEO.regionCode) { setStatus('select a hotspot'); return; }
+        setStatus('updating…');
+        refreshAll(true, true).then(function () { setStatus('updated'); });
+      });
+      hotspotSelect.addEventListener('click', function (ev) { ev.stopPropagation(); });
+      loadHotspots();
+    }
+    if (findHotspotsBtn) {
+      findHotspotsBtn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        if (applyGeo({ refresh: false, hotspots: false })) loadHotspots(true);
+      });
+    }
 
     if (refreshSeg) {
       syncPill(refreshSeg);

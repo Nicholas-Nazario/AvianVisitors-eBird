@@ -430,6 +430,25 @@
   .menu-geo .menu-row .seg button {
     padding: 6px 8px; letter-spacing: 0.08em;
   }
+  .menu-geo .hotspot-row {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+  .menu-geo .hotspot-row .label-block { grid-column: 1 / -1; }
+  .menu-geo .hotspot-row select {
+    min-width: 0; width: 100%;
+    background: var(--paper-2); border: 0; border-radius: 6px;
+    box-shadow: var(--recess); color: var(--ink);
+    padding: 8px 10px; font: 11px ui-monospace, Menlo, monospace;
+  }
+  .menu-geo .hotspot-row button {
+    background: var(--paper); border: 0; color: var(--ink);
+    padding: 8px 10px; border-radius: 6px;
+    font: 9px ui-monospace, Menlo, monospace;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    box-shadow: var(--raised); cursor: pointer;
+  }
+  .menu-geo .hotspot-row button:disabled { opacity: 0.5; cursor: default; }
   .menu-geo .menu-save-row {
     display: flex; align-items: center; justify-content: space-between;
     gap: 12px; padding: 8px 6px 4px 10px;

@@ -1,8 +1,8 @@
 <?php
-// AvianVisitors - JSON facade over eBird recent geo observations.
+// AvianVisitors - JSON facade over eBird recent observations and hotspots.
 //
 // Endpoints (?action=...):
-//   stats / lifelist / recent / species / timeseries / firstseen
+//   stats / lifelist / recent / species / timeseries / firstseen / hotspots
 //
 // Config: avian/data/ebird.json (see ebird.example.json). Override token
 // with env EBIRD_API_KEY. Observations are cached briefly on disk so the
@@ -35,7 +35,7 @@ if ($token === '') {
     exit;
 }
 
-// Optional query overrides from the menu drawer (lat / lng / dist / refresh).
+// Optional query overrides from the menu drawer.
 if (isset($_GET['lat']) && is_numeric($_GET['lat'])) {
     $config['lat'] = max(-90.0, min(90.0, (float)$_GET['lat']));
 }
@@ -45,14 +45,26 @@ if (isset($_GET['lng']) && is_numeric($_GET['lng'])) {
 if (isset($_GET['dist']) && is_numeric($_GET['dist'])) {
     $config['dist'] = max(1, min(50, (int)$_GET['dist']));
 }
+$mode = ($_GET['mode'] ?? 'geo') === 'hotspot' ? 'hotspot' : 'geo';
+$regionCode = trim((string)($_GET['regionCode'] ?? ''));
+if (!preg_match('/^[A-Za-z0-9-]+$/', $regionCode)) $regionCode = '';
 $forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
+$action = $_GET['action'] ?? 'stats';
 
-// Per-geo cache file so changing location doesn't serve the wrong birds.
+// Cache keys include the selected source so switching modes never returns
+// observations from a previous geographic search or hotspot.
 $CACHE_PATH = $DATA_DIR . '/ebird-cache-' . md5(json_encode([
+    $mode,
+    $regionCode,
     round((float)$config['lat'], 5),
     round((float)$config['lng'], 5),
     (int)$config['dist'],
     (int)($config['back'] ?? 30),
+])) . '.json';
+$HOTSPOT_CACHE_PATH = $DATA_DIR . '/ebird-hotspots-' . md5(json_encode([
+    round((float)$config['lat'], 5),
+    round((float)$config['lng'], 5),
+    (int)$config['dist'],
 ])) . '.json';
 
 
@@ -62,7 +74,7 @@ function parse_obs_dt(string $obsDt): ?int {
     return $t === false ? null : $t;
 }
 
-function fetch_ebird(array $config, string $token, string $cachePath, int $cacheTtl, bool $forceRefresh = false): array {
+function fetch_ebird(array $config, string $token, string $cachePath, int $cacheTtl, bool $forceRefresh = false, string $mode = 'geo', string $regionCode = ''): array {
     if (!$forceRefresh && is_file($cachePath)) {
         $cached = json_decode((string)file_get_contents($cachePath), true);
         if (is_array($cached)
@@ -74,15 +86,25 @@ function fetch_ebird(array $config, string $token, string $cachePath, int $cache
     }
 
     $back = max(1, min(30, (int)($config['back'] ?? 30)));
-    $query = http_build_query([
-        'lat' => $config['lat'],
-        'lng' => $config['lng'],
-        'dist' => $config['dist'],
-        'sort' => 'date',
-        'hotspot' => !empty($config['hotspot']) ? 'true' : 'false',
-        'back' => $back,
-    ]);
-    $url = 'https://api.ebird.org/v2/data/obs/geo/recent?' . $query;
+    if ($mode === 'hotspot') {
+        if ($regionCode === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'regionCode is required for hotspot mode']);
+            exit;
+        }
+        $url = 'https://api.ebird.org/v2/data/obs/' . rawurlencode($regionCode)
+            . '/recent?' . http_build_query(['back' => $back]);
+    } else {
+        $query = http_build_query([
+            'lat' => $config['lat'],
+            'lng' => $config['lng'],
+            'dist' => $config['dist'],
+            'sort' => 'date',
+            'hotspot' => !empty($config['hotspot']) ? 'true' : 'false',
+            'back' => $back,
+        ]);
+        $url = 'https://api.ebird.org/v2/data/obs/geo/recent?' . $query;
+    }
 
     $ctx = stream_context_create([
         'http' => [
@@ -124,6 +146,57 @@ function fetch_ebird(array $config, string $token, string $cachePath, int $cache
         'obs' => $obs,
     ]));
     return $obs;
+}
+
+function fetch_hotspots(array $config, string $token, string $cachePath, int $cacheTtl, bool $forceRefresh = false): array {
+    if (!$forceRefresh && is_file($cachePath)) {
+        $cached = json_decode((string)file_get_contents($cachePath), true);
+        if (is_array($cached)
+            && isset($cached['fetched_at'], $cached['hotspots'])
+            && (time() - (int)$cached['fetched_at']) < $cacheTtl
+            && is_array($cached['hotspots'])) {
+            return $cached['hotspots'];
+        }
+    }
+    $url = 'https://api.ebird.org/v2/ref/hotspot/geo?' . http_build_query([
+        'lat' => $config['lat'],
+        'lng' => $config['lng'],
+        'dist' => $config['dist'],
+        'fmt' => 'json',
+    ]);
+    $ctx = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'header' => "X-eBirdApiToken: $token\r\nAccept: application/json\r\n",
+            'timeout' => 20,
+            'ignore_errors' => true,
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $ctx);
+    $status = 0;
+    $respHeaders = function_exists('http_get_last_response_headers')
+        ? http_get_last_response_headers()
+        : ($http_response_header ?? null);
+    if (is_array($respHeaders) && isset($respHeaders[0]) && preg_match('/\s(\d{3})\s/', $respHeaders[0], $m)) {
+        $status = (int)$m[1];
+    }
+    if ($raw === false || $status >= 400) {
+        if (is_file($cachePath)) {
+            $cached = json_decode((string)file_get_contents($cachePath), true);
+            if (is_array($cached) && is_array($cached['hotspots'] ?? null)) return $cached['hotspots'];
+        }
+        http_response_code(502);
+        echo json_encode(['error' => 'eBird hotspot fetch failed', 'status' => $status]);
+        exit;
+    }
+    $hotspots = json_decode($raw, true);
+    if (!is_array($hotspots)) {
+        http_response_code(502);
+        echo json_encode(['error' => 'eBird returned invalid hotspot data']);
+        exit;
+    }
+    @file_put_contents($cachePath, json_encode(['fetched_at' => time(), 'hotspots' => $hotspots]));
+    return $hotspots;
 }
 
 function filter_by_hours(array $obs, int $hours): array {
@@ -178,8 +251,15 @@ function aggregate_species(array $obs): array {
     return $list;
 }
 
-$allObs = fetch_ebird($config, $token, $CACHE_PATH, $CACHE_TTL, $forceRefresh);
-$action = $_GET['action'] ?? 'stats';
+if ($action === 'hotspots') {
+    echo json_encode([
+        'hotspots' => fetch_hotspots($config, $token, $HOTSPOT_CACHE_PATH, $CACHE_TTL, $forceRefresh),
+        'as_of' => date('c'),
+    ]);
+    exit;
+}
+
+$allObs = fetch_ebird($config, $token, $CACHE_PATH, $CACHE_TTL, $forceRefresh, $mode, $regionCode);
 
 switch ($action) {
 
