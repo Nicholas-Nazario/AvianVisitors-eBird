@@ -82,6 +82,11 @@
     font-style: normal;
     transition: opacity 240ms cubic-bezier(.7,.05,.2,1);
   }
+  .static-head #staticLocation {
+    margin: 7px 0 0;
+    font: italic 400 clamp(12px, 1.2vw, 16px)/1.2 ui-serif, "Iowan Old Style", Georgia, serif;
+    color: var(--ink-2); letter-spacing: 0.04em;
+  }
   .static-head.swap-out h1 { opacity: 0; }
   @media (max-width: 700px) {
     .static-head { padding: 96px 18px 22px; }

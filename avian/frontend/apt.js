@@ -55,10 +55,11 @@
 
   // Each view's title text. The shared static-head shows one of these
   // based on the current view; identical adjacent values mean the title
-  // stays put with no fade (collage and stats both say Heard Recently).
-  var VIEW_TITLES = ['Heard Recently', 'Heard Recently', 'Avian Visitors'];
+  // stays put with no fade (collage and stats both say Seen Recently).
+  var VIEW_TITLES = ['Seen Recently', 'Seen Recently', 'Avian Visitors'];
   var staticHead = document.querySelector('.static-head');
   var staticTitle = document.getElementById('staticTitle');
+  var staticLocation = document.getElementById('staticLocation');
   function setTitleForView(i) {
     var next = VIEW_TITLES[i];
     if (!staticTitle || staticTitle.textContent === next) return;
@@ -849,7 +850,7 @@
 
   // ---- eBird query prefs (menu drawer) ----
   // Persisted in localStorage; sent as query params on every birdnet-api call.
-  var GEO_DEFAULTS = { lat: 40.785091, lng: -73.968285, dist: 3, mode: 'geo', regionCode: '', refreshMs: 5 * 60 * 1000 };
+  var GEO_DEFAULTS = { lat: 40.785091, lng: -73.968285, dist: 3, mode: 'geo', regionCode: '', regionName: '', refreshMs: 5 * 60 * 1000 };
   var REFRESH_OPTS = [
     { label: '1m', ms: 60 * 1000 },
     { label: '5m', ms: 5 * 60 * 1000 },
@@ -870,6 +871,7 @@
       dist: Math.max(1, Math.min(50, isNaN(dist) ? GEO_DEFAULTS.dist : dist)),
       mode: mode === 'hotspot' ? 'hotspot' : 'geo',
       regionCode: readLS('bird:regionCode', ''),
+      regionName: readLS('bird:regionName', ''),
       refreshMs: refreshMs,
     };
   }
@@ -879,9 +881,18 @@
     writeLS('bird:dist', String(GEO.dist));
     writeLS('bird:sourceMode', GEO.mode);
     writeLS('bird:regionCode', GEO.regionCode || '');
+    writeLS('bird:regionName', GEO.regionName || '');
     writeLS('bird:refreshMs', String(GEO.refreshMs));
   }
   var GEO = loadGeo();
+  function updateLocationSubtitle() {
+    if (!staticLocation) return;
+    var location = GEO.mode === 'hotspot'
+      ? (GEO.regionName || 'a hotspot')
+      : GEO.lat.toFixed(2) + ', ' + GEO.lng.toFixed(2);
+    staticLocation.textContent = 'near ' + location;
+  }
+  updateLocationSubtitle();
   var forceRefreshOnce = false;
 
   function birdApi(qs) {
@@ -1515,11 +1526,14 @@
       saveGeo();
       if (GEO.mode === 'hotspot') {
         GEO.regionCode = '';
+        GEO.regionName = '';
         saveGeo();
+        updateLocationSubtitle();
         if (opts.hotspots !== false) loadHotspots();
         setStatus('select a hotspot');
         return true;
       }
+      updateLocationSubtitle();
       if (opts.refresh !== false) {
         setStatus('updating…');
         refreshAll(true, true).then(function () { setStatus('updated'); });
@@ -1557,6 +1571,12 @@
           return '<option value="' + geoEsc(id) + '"' + (id === GEO.regionCode ? ' selected' : '') + '>'
             + geoEsc(h.locName || id) + '</option>';
         }).join('');
+        var selectedHotspot = hotspots.find(function (h) { return h.locId === GEO.regionCode; });
+        if (selectedHotspot && selectedHotspot.locName !== GEO.regionName) {
+          GEO.regionName = selectedHotspot.locName || '';
+          saveGeo();
+          updateLocationSubtitle();
+        }
         hotspotSelect.disabled = hotspots.length === 0;
         if (!hotspots.length) setStatus('no hotspots found');
         else if (!GEO.regionCode) setStatus('select a hotspot');
@@ -1587,6 +1607,7 @@
         if (!btn || btn.dataset.source === GEO.mode) return;
         GEO.mode = btn.dataset.source;
         saveGeo();
+        updateLocationSubtitle();
         renderMenu(menu);
         if (GEO.mode === 'geo') refreshAll(true, true);
       });
@@ -1595,7 +1616,11 @@
       hotspotSelect.addEventListener('change', function (ev) {
         ev.stopPropagation();
         GEO.regionCode = hotspotSelect.value;
+        GEO.regionName = GEO.regionCode
+          ? hotspotSelect.options[hotspotSelect.selectedIndex].textContent
+          : '';
         saveGeo();
+        updateLocationSubtitle();
         if (!GEO.regionCode) { setStatus('select a hotspot'); return; }
         setStatus('updating…');
         refreshAll(true, true).then(function () { setStatus('updated'); });
