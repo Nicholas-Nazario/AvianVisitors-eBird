@@ -111,26 +111,6 @@
   function readLS(k, fallback) { try { return localStorage.getItem(k) || fallback; } catch (e) { return fallback; } }
   function writeLS(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }
 
-  // ---- Single-audio coordinator ----
-  // Only one source plays at a time across the whole app: atlas-card
-  // playback, modal recording playback, and the live stream each call
-  // audioClaim(theirStopFn) the moment they start, which stops whatever
-  // else was playing, and audioRelease(theirStopFn) when they stop on
-  // their own. Keeps "start a new one -> the old one pauses" true even
-  // across those three independent players.
-  var __audioActiveStop = null;
-  function audioClaim(stopSelf) {
-    if (__audioActiveStop && __audioActiveStop !== stopSelf) {
-      var prev = __audioActiveStop;
-      __audioActiveStop = null;
-      try { prev(); } catch (e) { }
-    }
-    __audioActiveStop = stopSelf;
-  }
-  function audioRelease(stopSelf) {
-    if (__audioActiveStop === stopSelf) __audioActiveStop = null;
-  }
-
   // ---- Theme (light / charcoal dark) ----
   // A per-device preference (localStorage), applied as data-theme on
   // <html>. An inline script in index.html sets it before first paint to
@@ -1151,37 +1131,20 @@
   }
 
   // ---- Atlas: field-guide card grid ----
-  // eBird species codes for placeholder birds. eBird's URL scheme is
-  // https://ebird.org/species/<code>/, where <code> is a stable 6-char
-  // taxonomy code. Hardcoded here for the local-California demo set;
-  // a real implementation can look these up via the eBird taxon API.
-  var EBIRD_CODES = {
-    'Calypte anna': 'annhum',
-    'Passer domesticus': 'houspa',
-    'Haemorhous mexicanus': 'houfin',
-    'Turdus migratorius': 'amerob',
-    'Zenaida macroura': 'moudov',
-    'Spinus psaltria': 'lesgol',
-    'Zonotrichia leucophrys': 'whcspa',
-    'Aphelocoma californica': 'cascj1',
-    'Mimus polyglottos': 'normoc',
-    'Sayornis nigricans': 'blkpho',
-    'Larus occidentalis': 'wegull',
-    'Corvus brachyrhynchos': 'amecro'
-  };
-
   function wikiUrl(sci) {
     return 'https://en.wikipedia.org/wiki/' + encodeURIComponent(sci.replace(/ /g, '_'));
   }
-  function ebirdUrl(sci) {
-    var code = EBIRD_CODES[sci];
+  function ebirdUrl(sci, speciesCode) {
+    if (!speciesCode) {
+      var species = ((DATA.lifelist && DATA.lifelist.species) || [])
+        .find(function (s) { return s.sci === sci; });
+      speciesCode = species && species.speciesCode;
+    }
+    var code = speciesCode;
     return code ? 'https://ebird.org/species/' + code : 'https://ebird.org/explore';
   }
 
   // Tiny inline icons - monochrome, ink-only, match the page palette.
-  var ICON_PLAY = '<svg viewBox="0 0 12 12" fill="currentColor"><path d="M3 2 L10 6 L3 10 Z"/></svg>';
-  var ICON_PAUSE = '<svg viewBox="0 0 12 12" fill="currentColor"><rect x="3" y="2" width="2.5" height="8"/><rect x="6.5" y="2" width="2.5" height="8"/></svg>';
-
   function renderAtlas(animate) {
     var grid = document.getElementById('atlasGrid');
     if (!grid) return;
@@ -1244,7 +1207,6 @@
       var sketchSrc = './avian/api/cutout.php?sci=' + encodeURIComponent(s.sci) +
         (s.com ? '&com=' + encodeURIComponent(s.com) : '') +
         '&v=' + SKETCH_VERSION;
-      var audioSrc = './avian/api/recording.php?sci=' + encodeURIComponent(s.sci);
       // The "all time" window makes the windowed count identical to the
       // all-time count - collapse to a single stat rather than print the
       // same number twice. Otherwise label the count with its span.
@@ -1253,7 +1215,7 @@
         : '<div><span class="n">' + fmtNK(win) + '</span><span class="lbl-inline">' + windowLabel(currentHours) + '</span></div>'
         + '<div><span class="n">' + fmtNK(total) + '</span><span class="lbl-inline">all time</span></div>';
       return ''
-        + '<article class="bird-card" data-sci="' + s.sci + '" data-audio="' + audioSrc + '">'
+        + '<article class="bird-card" data-sci="' + s.sci + '">'
         + (isLifer ? '<span class="lifer-badge" title="new to the life list in this window">lifer</span>' : '')
         + '<div class="stat">' + statRows + '</div>'
         + '<div class="img-wrap">'
@@ -1261,153 +1223,13 @@
         + '</div>'
         + '<h3>' + s.com + '</h3>'
         + '<div class="sci">' + s.sci + '</div>'
-        + '<div class="spectro-wrap" aria-hidden="true"></div>'
         + '<div class="actions">'
-        + '<button type="button" class="chip play" data-action="play" aria-label="play recording">'
-        + ICON_PLAY + '<span>play</span>'
-        + '</button>'
         + '<a class="chip ext" href="' + wikiUrl(s.sci) + '" target="_blank" rel="noopener" aria-label="Wikipedia">wiki</a>'
-        + '<a class="chip ext" href="' + ebirdUrl(s.sci) + '" target="_blank" rel="noopener" aria-label="eBird">ebird</a>'
+        + '<a class="chip ext" href="' + ebirdUrl(s.sci, s.speciesCode) + '" target="_blank" rel="noopener" aria-label="eBird">ebird</a>'
         + '</div>'
         + '</article>';
     }).join('');
 
-    // Wire audio playback + spectrogram load.
-    // - Only one card plays at a time. Clicking play on a different card
-    //   stops the current one first.
-    // - The spectrogram is lazily fetched on first play (saves a Pi hit
-    //   for every card visible on initial render).
-    // - If the recording endpoint 404s (no detection yet for this
-    //   species), the button reverts and shows "no audio".
-    var currentAudio = null;
-    var currentBtn = null;
-    function setBtnState(btn, state) {
-      btn.setAttribute('data-state', state);
-      if (state === 'playing') {
-        btn.setAttribute('data-active', 'true');
-        btn.innerHTML = ICON_PAUSE + '<span>stop</span>';
-      } else if (state === 'loading') {
-        btn.setAttribute('data-active', 'true');
-        btn.innerHTML = ICON_PLAY + '<span>...</span>';
-      } else if (state === 'missing') {
-        btn.setAttribute('data-active', 'false');
-        btn.innerHTML = ICON_PLAY + '<span>no audio</span>';
-        setTimeout(function () {
-          if (btn.getAttribute('data-state') === 'missing') {
-            btn.innerHTML = ICON_PLAY + '<span>play</span>';
-            btn.setAttribute('data-state', 'idle');
-          }
-        }, 2200);
-      } else {
-        btn.setAttribute('data-active', 'false');
-        btn.innerHTML = ICON_PLAY + '<span>play</span>';
-      }
-    }
-    function clearProgressOn(card) {
-      if (!card) return;
-      var sw = card.querySelector('.spectro-wrap');
-      if (sw) sw.style.setProperty('--prog', '0%');
-      card.removeAttribute('data-playing');
-    }
-    function stopCurrent() {
-      audioRelease(stopCurrent);
-      if (currentAudio) {
-        try { currentAudio.pause(); } catch (e) { }
-        currentAudio = null;
-      }
-      if (currentBtn) {
-        var card = currentBtn.closest('.bird-card');
-        clearProgressOn(card);
-        setBtnState(currentBtn, 'idle');
-        currentBtn = null;
-      }
-    }
-    grid.querySelectorAll('[data-action="play"]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var card = btn.closest('.bird-card');
-        if (btn === currentBtn) { stopCurrent(); return; }
-        stopCurrent();
-        audioClaim(stopCurrent);   // stop any modal-recording / live-stream audio
-        setBtnState(btn, 'loading');
-        currentBtn = btn;
-        // Render the spectrogram client-side from the recording's audio so
-        // it matches the active theme. paintSpectrogram paints with the
-        // --paper/--ink palette per data-theme (the same canvas the modal
-        // recordings use), instead of a fixed-colour PNG that can't follow
-        // light/dark mode. Decoded buffers are cached per URL.
-        var spectroWrap = card.querySelector('.spectro-wrap');
-        if (spectroWrap && !spectroWrap.firstChild) {
-          var canvas = document.createElement('canvas');
-          spectroWrap.appendChild(canvas);
-          var aurl = card.dataset.audio;
-          if (_decodedCache[aurl]) {
-            paintSpectrogram(canvas, _decodedCache[aurl]);
-          } else {
-            var actx = getSpecCtx();
-            if (actx) {
-              fetch(aurl)
-                .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
-                .then(function (b) { return actx.decodeAudioData(b); })
-                .then(function (buf) {
-                  _decodedCache[aurl] = buf;
-                  // Guard on document containment, not spectroWrap.contains:
-                  // a 30s refreshAll() poll can rebuild the atlas and detach
-                  // this card mid-decode. The detached wrap still "contains"
-                  // its canvas, but a detached node measures 0x0, which would
-                  // trap paintSpectrogram in its size-retry loop forever.
-                  if (document.contains(canvas)) paintSpectrogram(canvas, buf);
-                })
-                .catch(function () { if (spectroWrap.contains(canvas)) spectroWrap.removeChild(canvas); });
-            } else {
-              spectroWrap.removeChild(canvas);
-            }
-          }
-        }
-        // Start audio.
-        var audio = new Audio(card.dataset.audio);
-        audio.addEventListener('canplay', function () {
-          if (currentBtn !== btn) return; // user clicked away
-          setBtnState(btn, 'playing');
-          card.setAttribute('data-playing', 'true');
-          audio.play();
-        });
-        // Progress bar on the spectrogram strip.
-        audio.addEventListener('timeupdate', function () {
-          if (currentBtn !== btn) return;
-          var pct = audio.duration ? (audio.currentTime / audio.duration * 100) : 0;
-          if (spectroWrap) spectroWrap.style.setProperty('--prog', pct.toFixed(1) + '%');
-        });
-        audio.addEventListener('ended', function () {
-          if (currentBtn === btn) stopCurrent();
-        });
-        audio.addEventListener('error', function () {
-          if (currentBtn === btn) {
-            setBtnState(btn, 'missing');
-            clearProgressOn(card);
-            currentAudio = null; currentBtn = null;
-          }
-        });
-        currentAudio = audio;
-        audio.load();
-      });
-    });
-
-    // Spectrogram click = scrub to that position (if playing) or restart.
-    grid.addEventListener('click', function (ev) {
-      var sw = ev.target.closest && ev.target.closest('.spectro-wrap');
-      if (!sw || !sw.firstChild) return;
-      var card = sw.closest('.bird-card');
-      var btn = card.querySelector('[data-action="play"]');
-      // If this card is the active one, scrub.
-      if (currentBtn === btn && currentAudio && currentAudio.duration) {
-        var rect = sw.getBoundingClientRect();
-        var pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-        currentAudio.currentTime = pct * currentAudio.duration;
-      } else {
-        // Otherwise start playback from the top.
-        btn.click();
-      }
-    });
     if (animate) playAtlasEntrance();
   }
 
@@ -1853,7 +1675,7 @@
   // When a collage tile or stats row is clicked it sets
   // location.hash = '#sci=<name>'. On arrival we switch to the atlas
   // view, highlight the matching card, AND open the detail modal with
-  // expanded info (Wikipedia summary, taxonomy, all past recordings).
+  // expanded info (Wikipedia summary and taxonomy).
   function readHash() {
     var m = location.hash.match(/^#sci=([^&]+)/);
     if (!m) return null;
@@ -1886,28 +1708,6 @@
   // tunnel; one fetch per session is plenty.
   var SPECIES_CACHE = {};
   var WIKI_CACHE = {};
-  var modalAudio = null;
-  var modalRecBtn = null;
-  function fmtRecTime(d, t) {
-    // d="2026-05-15", t="20:25:29"
-    if (!d) return '-';
-    var date = new Date((d || '') + 'T' + (t || '00:00:00'));
-    if (isNaN(date.getTime())) return d + ' ' + (t || '');
-    var now = Date.now();
-    var ago = Math.floor((now - date.getTime()) / 1000);
-    if (ago < 60) return ago + 's ago';
-    if (ago < 3600) return Math.floor(ago / 60) + 'm ago';
-    if (ago < 86400) return Math.floor(ago / 3600) + 'h ago';
-    return Math.floor(ago / 86400) + 'd ago';
-  }
-  function fmtDateLine(d, t) {
-    if (!d) return '';
-    try {
-      var date = new Date(d + 'T' + (t || '00:00:00'));
-      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
-        ' · ' + (t ? t.slice(0, 5) : '');
-    } catch (e) { return d + ' ' + (t || ''); }
-  }
   function rarityLabel(total, firstSeenIso) {
     if (!total) return '-';
     var days = 1;
@@ -1921,67 +1721,6 @@
     if (perDay >= 0.2) return 'occasional';
     return 'rare';
   }
-  // rAF-driven cursor smoothing. timeupdate fires ~4Hz which feels
-  // janky; we sample audio.currentTime every animation frame and
-  // interpolate to a 60Hz update so the playback knob glides.
-  var modalCursorRaf = null;
-  function startCursorLoop() {
-    if (modalCursorRaf) return;
-    var tick = function () {
-      if (!modalAudio || !modalRecBtn) { modalCursorRaf = null; return; }
-      var row = modalRecBtn.closest('.rec-row');
-      if (row && modalAudio.duration) {
-        var strip = row.querySelector('.rec-spectro');
-        var played = strip && strip.querySelector('.rec-spectro-played');
-        var cursor = strip && strip.querySelector('.rec-spectro-cursor');
-        var pct = (modalAudio.currentTime / modalAudio.duration) * 100;
-        if (played) played.style.width = pct.toFixed(3) + '%';
-        if (cursor) cursor.style.left = pct.toFixed(3) + '%';
-      }
-      modalCursorRaf = requestAnimationFrame(tick);
-    };
-    modalCursorRaf = requestAnimationFrame(tick);
-  }
-  function stopCursorLoop() {
-    if (modalCursorRaf) { cancelAnimationFrame(modalCursorRaf); modalCursorRaf = null; }
-  }
-
-  // Pause the currently-playing modal recording but KEEP the audio
-  // element alive so the user can scrub (audio.currentTime is still
-  // mutable on a paused element) and then resume from the same spot.
-  // The cursor stays visible at its last position.
-  function pauseModalAudio() {
-    stopCursorLoop();
-    if (modalAudio) { try { modalAudio.pause(); } catch (e) { } }
-    if (modalRecBtn) {
-      modalRecBtn.removeAttribute('data-active');
-      modalRecBtn.innerHTML = ICON_PLAY;
-    }
-  }
-  // Hard-stop: pause + tear down the audio + clear cursor. Used when
-  // switching rows or closing the modal.
-  function stopModalAudio() {
-    audioRelease(stopModalAudio);
-    stopCursorLoop();
-    if (modalAudio) { try { modalAudio.pause(); } catch (e) { } modalAudio = null; }
-    if (modalRecBtn) {
-      var prevRow = modalRecBtn.closest('.rec-row');
-      if (prevRow) {
-        var strip = prevRow.querySelector('.rec-spectro');
-        if (strip) {
-          strip.classList.remove('armed');
-          var played = strip.querySelector('.rec-spectro-played');
-          var cur = strip.querySelector('.rec-spectro-cursor');
-          if (played) played.style.width = '0%';
-          if (cur) cur.style.left = '0%';
-        }
-      }
-      modalRecBtn.removeAttribute('data-active');
-      modalRecBtn.innerHTML = ICON_PLAY;
-      modalRecBtn = null;
-    }
-  }
-
   function sketchSrc(sci, pose) {
     // Look up the common name from the lifelist so the worker's JIT
     // Gemini prompt is right for a never-pre-rendered species.
@@ -2068,8 +1807,6 @@
     document.getElementById('modalRarity').classList.remove('rare');
     document.getElementById('modalDesc').textContent = 'Loading description...';
     document.getElementById('modalDesc').classList.add('placeholder');
-    document.getElementById('modalRecordings').innerHTML = '<li class="rec-empty">Loading recordings...</li>';
-    document.getElementById('modalRecCount').textContent = '';
     document.getElementById('modalWiki').href = wikiUrl(sci);
     document.getElementById('modalEbird').href = ebirdUrl(sci);
     // FLIP-style morph: scale + translate the modal-card from the
@@ -2099,30 +1836,11 @@
       document.getElementById('modalAllTime').textContent = (+s.total || 0).toLocaleString();
       var winRow = ((DATA.recent && DATA.recent.species) || []).filter(function (x) { return x.sci === sci; })[0];
       document.getElementById('modalWindow').textContent = (winRow ? +winRow.n : 0).toLocaleString();
-      document.getElementById('modalFirstSeen').textContent = s.first_seen ? fmtRecTime(s.first_seen.split(' ')[0], s.first_seen.split(' ')[1]) : '-';
+      document.getElementById('modalFirstSeen').textContent = s.first_seen || '-';
       var rar = rarityLabel(+s.total || 0, s.first_seen);
       var rarEl = document.getElementById('modalRarity');
       rarEl.textContent = rar;
       if (rar === 'rare') rarEl.classList.add('rare');
-      var dets = j.detections || [];
-      document.getElementById('modalRecCount').textContent = dets.length + ' captured';
-      document.getElementById('modalRecordings').innerHTML = dets.length
-        ? dets.map(function (d) {
-          return '<li class="rec-row" data-file="' + (d.file || '') + '" data-date="' + (d.d || '') + '">'
-            + '<button class="play" type="button" aria-label="play">' + ICON_PLAY + '</button>'
-            + '<span class="when">' + fmtRecTime(d.d, d.t) + '<small>' + fmtDateLine(d.d, d.t) + '</small></span>'
-            + '<span class="conf">' + ((+d.conf || 0) * 100).toFixed(0) + '%</span>'
-            + '<div class="rec-spectro" aria-hidden="true">'
-            + '<div class="rec-spectro-loading">loading spectrogram...</div>'
-            + '<div class="rec-spectro-played"></div>'
-            + '<div class="rec-spectro-cursor"></div>'
-            + '<div class="rec-spectro-scrub" role="slider" aria-label="scrub" tabindex="0"></div>'
-            + '</div>'
-            + '</li>';
-        }).join('')
-        : '<li class="rec-empty">No recordings yet.</li>';
-    }).catch(function () {
-      document.getElementById('modalRecordings').innerHTML = '<li class="rec-empty">Failed to load recordings.</li>';
     });
 
     // Wikipedia summary (description + genus / family).
@@ -2143,7 +1861,6 @@
   }
   function closeDetailModal() {
     var modal = document.getElementById('detail-modal');
-    stopModalAudio();
     // Reverse-morph back into the source atlas card so the modal
     // appears to *retract* to where it came from. Look the card up
     // fresh - the user may have switched the time window or sort
@@ -2693,6 +2410,7 @@
     location.hash = '#about';
   });
 
+  /* Removed audio playback and spectrogram implementation.
   // Shared decode context for spectrogram generation. Lives once for
   // the page; lazily created on first expand to avoid bootstrapping
   // WebAudio if no one ever opens a row.
@@ -3053,6 +2771,8 @@
     document.addEventListener('touchend', function () { dragRow = null; });
   })();
 
+  */
+
   // Any element with data-sci is a "jump to that bird's atlas card"
   // affordance: atlas cards themselves, stats list rows (top species /
   // first detections), stats timeline squares, and any future surface
@@ -3071,7 +2791,7 @@
     if (!ev.target.closest) return;
     var card = ev.target.closest('.bird-card');
     if (card) {
-      if (ev.target.closest('.actions, .spectro-wrap')) return;
+      if (ev.target.closest('.actions')) return;
       return jumpToSci(card.dataset.sci);
     }
     var row = ev.target.closest('li[data-sci]');

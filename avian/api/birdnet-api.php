@@ -151,6 +151,7 @@ function aggregate_species(array $obs): array {
             $by[$sci] = [
                 'sci' => $sci,
                 'com' => $com,
+                'speciesCode' => trim((string)($row['speciesCode'] ?? '')),
                 'n' => 0,
                 'last_seen' => $dt,
                 'first_seen' => $dt,
@@ -160,6 +161,7 @@ function aggregate_species(array $obs): array {
             ];
         }
         $by[$sci]['n'] += $n;
+        if (!empty($row['speciesCode'])) $by[$sci]['speciesCode'] = trim((string)$row['speciesCode']);
         if ($com !== '') $by[$sci]['com'] = $com;
         if ($dt !== '' && ($by[$sci]['last_seen'] === '' || strcmp($dt, $by[$sci]['last_seen']) > 0)) {
             $by[$sci]['last_seen'] = $dt;

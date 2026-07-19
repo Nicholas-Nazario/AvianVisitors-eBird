@@ -808,7 +808,7 @@
   /* ============ View 3 - Atlas ============
      Field-guide grid: one card per species, each card holds the cutout,
      names, window/all-time detection counts, and small action chips for
-     audio playback, Wikipedia, and eBird. */
+     Wikipedia and eBird. */
   .atlas-controls {
     /* The bar is transparent and floats (z-index) over the scrolling cards;
        only the pill is opaque. Cards scroll behind it and clip at the top of
@@ -852,8 +852,8 @@
   }
   /* Mobile atlas: a compact 2-up grid instead of one giant card per row,
      so you can scan many birds and tap easily. Inline actions are hidden -
-     tapping the card opens the detail modal, which has play/wiki/ebird +
-     recordings - making the whole card one big touch target. */
+     tapping the card opens the detail modal, which has wiki/ebird - making
+     the whole card one big touch target. */
   @media (max-width: 700px) {
     /* minmax(0,1fr) lets the columns shrink below their content's intrinsic
        width (otherwise the chips force overflow). Selectors are scoped under
@@ -882,7 +882,7 @@
     transition: transform 200ms ease, box-shadow 200ms ease;
   }
   .bird-card:hover { transform: translateY(-1px); box-shadow: var(--edge-xl, 0 6px 16px rgba(26,22,18,0.12)); }
-  .bird-card .actions, .bird-card .spectro-wrap { cursor: auto; }
+  .bird-card .actions { cursor: auto; }
   .bird-card .actions button, .bird-card .actions a { cursor: pointer; }
   .bird-card .stat {
     position: absolute; top: 14px; left: 16px;
@@ -954,7 +954,6 @@
     background: var(--ink);
   }
   .bird-card .chip svg { width: 10px; height: 10px; display: block; }
-  .bird-card .chip.play { padding-left: 7px; }
   .bird-card .chip.ext::after { content: '↗'; opacity: 0.6; font-size: 11px; }
 
   /* Selected card highlight - matches the page-slider and time-window
@@ -1196,8 +1195,7 @@
 
   /* ============ Detail modal (atlas card expansion) ============
      Click a bird card -> this fades in over a soft ink backdrop with
-     the full sketch, taxonomic info, Wikipedia summary, and a
-     scrollable list of every past audio capture for the species. */
+     the full sketch, taxonomic info, and Wikipedia summary. */
   /* /about - a brief explainer popup floated over the index page.
      Reuses .modal-backdrop / .modal-close; opened by the #about hash. */
   #about-modal {
@@ -1549,52 +1547,6 @@
   }
   .modal-actions .chip:hover { transform: translateY(-1px); }
   .modal-actions .chip.ext::after { content: '↗'; opacity: 0.6; }
-
-  /* Spectrogram appears on first audio play. Recoloured via CSS filter
-     so BirdNET-Pi's default colour spectrogram comes out as a clean
-     monochrome ink strip, matching the rest of the chart. Click to
-     replay; a thin progress bar tracks playback in real time. */
-  .bird-card .spectro-wrap {
-    position: relative;
-    min-height: 0; margin: 6px 0 2px;
-    cursor: pointer;
-    overflow: hidden;
-    border-radius: 3px;
-    box-shadow: var(--recess);
-  }
-  .bird-card .spectro-wrap:empty { display: none; }
-  /* Canvas is painted client-side in the active theme's paper/ink palette
-     (paintSpectrogram reads data-theme), so it follows light/dark mode with
-     no CSS filter - same renderer as the modal recording spectrograms. */
-  .bird-card .spectro-wrap canvas {
-    width: 100%; height: 44px; display: block;
-  }
-  /* Progress wash: a translucent veil that grows as the clip plays. Ink in
-     light mode; in dark mode a light veil so it stays visible over the
-     charcoal spectrogram ground. */
-  .bird-card .spectro-wrap::after {
-    content: '';
-    position: absolute; top: 0; bottom: 0; left: 0;
-    width: var(--prog, 0%);
-    background: linear-gradient(to right, rgba(26,22,18,0.30), rgba(26,22,18,0.05));
-    pointer-events: none;
-    transition: width 60ms linear;
-  }
-  :root[data-theme="dark"] .bird-card .spectro-wrap::after {
-    background: linear-gradient(to right, rgba(236,232,225,0.26), rgba(236,232,225,0.05));
-  }
-  /* Playhead - thin vertical line at the leading edge */
-  .bird-card .spectro-wrap::before {
-    content: '';
-    position: absolute; top: 0; bottom: 0;
-    left: var(--prog, 0%);
-    width: 1px;
-    background: var(--ink);
-    opacity: var(--playhead, 0);
-    pointer-events: none;
-    transition: opacity 200ms ease;
-  }
-  .bird-card[data-playing="true"] .spectro-wrap::before { --playhead: 0.6; }
 
 /* ============ AvianVisitors mode toggle ============
  * Default install (body.av-local): hide the lock-row, show drawer items
