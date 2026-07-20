@@ -858,7 +858,7 @@
 
   // ---- eBird query prefs (menu drawer) ----
   // Persisted in localStorage; sent as query params on every birdnet-api call.
-  var GEO_DEFAULTS = { lat: 40.785091, lng: -73.968285, dist: 3, mode: 'geo', regionCode: '', regionName: '', refreshMs: 5 * 60 * 1000 };
+  var GEO_DEFAULTS = { lat: 40.794618, lng: -73.959878, dist: 3, mode: 'geo', regionCode: '', regionName: '', refreshMs: 5 * 60 * 1000 };
   var REFRESH_OPTS = [
     { label: '1m', ms: 60 * 1000 },
     { label: '5m', ms: 5 * 60 * 1000 },

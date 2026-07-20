@@ -18,8 +18,8 @@ $CONFIG_PATH = "$DATA_DIR/ebird.json";
 $CACHE_TTL = 60; // seconds
 
 $config = [
-    'lat' => 40.785091,
-    'lng' => -73.968285,
+    'lat' => 40.794618,
+    'lng' => -73.959878,
     'dist' => 3,
     'hotspot' => true,
     'back' => 30, // days to pull from eBird (max 30); window filter is applied in PHP

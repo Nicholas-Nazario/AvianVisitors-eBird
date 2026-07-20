@@ -19,8 +19,8 @@ if [[ ! -f "$DATA/ebird.json" ]]; then
     python3 - <<PY
 import json, os
 cfg = {
-  "lat": 40.785091,
-  "lng": -73.968285,
+  "lat": 40.794618,
+  "lng": -73.959878,
   "dist": 3,
   "hotspot": True,
   "back": 30,
