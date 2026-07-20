@@ -43,11 +43,9 @@ The collage frontend polls these about every 30s (and when you change the time w
 
 | Call | What it returns | What the UI uses it for |
 |---|---|---|
-| **`recent&hours=12`** | Species seen in that window (`sci`, `com`, `n`, `last_seen`) | Collage tiles + stats “top species” / timeline. `hours` comes from the 1H / 12H / 24H / 7D / ALL picker. |
+| **`recent&hours=12`** | Species seen in that window (`sci`, `com`, `n`, `last_seen`) | Collage tiles, atlas cards + stats “top species” / timeline. `hours` comes from the 1H / 12H / 24H / 7D / 30D picker. |
 | **`timeseries&days=30`** | Daily + by-hour counts | Stats charts (detections over days / hours of day). |
-| **`firstseen&limit=10`** | Newest species by first observation | “First Detections” list on stats. |
 | **`stats`** | Totals / today / last hour / week | “By Period” summary numbers. |
-| **`lifelist`** | Every species in the pulled eBird set, with all-time-ish counts | Atlas cards and all-time counts in the detail modal. |
 
 ## Fly.io backend + GitHub Pages frontend
 

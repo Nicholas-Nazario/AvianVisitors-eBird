@@ -837,7 +837,7 @@
 
   /* ============ View 3 - Atlas ============
      Field-guide grid: one card per species, each card holds the cutout,
-     names, window/all-time detection counts, and small action chips for
+     names, selected-window detection counts, and small action chips for
      Wikipedia and eBird. */
   .atlas-controls {
     /* The bar is transparent and floats (z-index) over the scrolling cards;
@@ -898,7 +898,6 @@
     .atlas-grid .bird-card h3 { font-size: 12.5px; }
     .atlas-grid .bird-card .sci { font-size: 9.5px; }
     .atlas-grid .bird-card .actions { display: none; }
-    .atlas-grid .lifer-badge { top: 9px; right: 9px; font-size: 7px; padding: 3px 5px; letter-spacing: 0.1em; }
   }
   .bird-card {
     position: relative;
@@ -918,18 +917,6 @@
     position: absolute; top: 14px; left: 16px;
     font: 9px/1.5 ui-monospace, Menlo, monospace;
     color: var(--ink-soft); letter-spacing: 0.04em;
-  }
-  /* "lifer" badge - shown top-right when a species' first-ever detection
-     falls inside the selected window (set in renderAtlas). pointer-events
-     off so it never blocks the card's click-to-open. */
-  .lifer-badge {
-    position: absolute; top: 12px; right: 12px; z-index: 2;
-    font: 700 8px/1 ui-monospace, Menlo, monospace;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--paper); background: var(--accent);
-    padding: 4px 7px; border-radius: 999px;
-    box-shadow: 0 2px 6px rgba(26,22,18,0.18);
-    pointer-events: none;
   }
   .bird-card .stat .n {
     color: var(--ink); font: 700 13px/1 ui-serif, Georgia, serif;

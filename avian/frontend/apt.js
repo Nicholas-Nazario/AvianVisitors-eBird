@@ -652,7 +652,7 @@
 
   // Atlas entrance: cards rise + fade in row by row, top to bottom. Cards
   // sharing an offsetTop are one row, so they appear together; each row
-  // down adds a small delay (capped so a long lifelist doesn't crawl).
+  // down adds a small delay (capped so a long atlas doesn't crawl).
   var atlasEntranceT = null;
   // lead: ms to hold every card hidden before the cascade starts. On a view
   // switch this is set to ~the view-slide duration so the row-by-row load-in
@@ -672,7 +672,7 @@
     // Each row trails the one above by PER_ROW ms. At 90ms against the 480ms
     // card animation the rows clearly cascade top-to-bottom (a row starts when
     // the one above is ~1/5 in) instead of reading as one simultaneous fade.
-    // MAX_ROW caps the stagger so a long lifelist's off-screen rows don't crawl.
+    // MAX_ROW caps the stagger so off-screen rows don't crawl.
     var PER_ROW = 90, MAX_ROW = 10;
     cards.forEach(function (c) {
       c.classList.remove('entering');
@@ -922,9 +922,7 @@
   var STATS_DAYS = 30;
   var DATA = {
     stats: null,        // birdApi('action=stats')
-    lifelist: null,     // birdApi('action=lifelist')
     timeseries: null,   // birdApi('action=timeseries&days=30')
-    firstseen: null,    // birdApi('action=firstseen&limit=10')
     recent: null,       // birdApi('action=recent&hours=N')
   };
 
@@ -934,9 +932,6 @@
     specPerDay: new Array(STATS_DAYS).fill(0), // [day] unique species
     byHour: new Array(24).fill(0),         // [hour-of-day] detections
   };
-
-  // Map sci -> all-time detection count, populated from lifelist for atlas.
-  var speciesTotals = {};
 
   function fetchJson(url) {
     return fetch(url, { cache: 'no-store' })
@@ -963,15 +958,12 @@
 
   function recomputeDerived() {
     var ts = DATA.timeseries || { daily: [], by_hour: [] };
-    var ll = DATA.lifelist || { species: [] };
     var rows = backfillDaily(ts.daily, STATS_DAYS);
     STATS.detPerDay = rows.map(function (r) { return r.detections; });
     STATS.specPerDay = rows.map(function (r) { return r.species; });
     var byHour = new Array(24).fill(0);
     (ts.by_hour || []).forEach(function (r) { byHour[+r.hour] = +r.detections; });
     STATS.byHour = byHour;
-    speciesTotals = {};
-    (ll.species || []).forEach(function (s) { speciesTotals[s.sci] = +s.n; });
   }
 
   // Editorial detection timeline. One evenly-spaced column per species,
@@ -1115,7 +1107,6 @@
   function renderStatsLists() {
     var stats = DATA.stats || {};
     var recent = DATA.recent || { species: [] };
-    var firstseen = DATA.firstseen || { species: [] };
 
     // By Period - pulled directly from ./avian/api/birdnet-api.php?action=stats so the numbers
     // are authoritative (BirdNET-Pi's own counts).
@@ -1141,21 +1132,6 @@
     document.getElementById('statsTopSpecCap').textContent =
       'most-heard, ' + windowLabel(currentHours);
 
-    // First Detections - newest additions to the life list, with a
-    // "Xd ago" label computed from first_seen.
-    var fs = (firstseen.species || []).slice(0, 5);
-    var now = Date.now();
-    document.getElementById('statsFirstSeen').innerHTML = fs.length
-      ? fs.map(function (s) {
-        var t = Date.parse((s.first_seen || '').replace(' ', 'T'));
-        var label = '-';
-        if (!isNaN(t)) {
-          var daysAgo = Math.floor((now - t) / 86400000);
-          label = daysAgo === 0 ? 'today' : daysAgo + 'd ago';
-        }
-        return liRow(label, s.com, '', s.sci);
-      }).join('')
-      : liRow('-', 'no detections yet', '');
   }
 
   // ---- Atlas: field-guide card grid ----
@@ -1164,7 +1140,7 @@
   }
   function ebirdUrl(sci, speciesCode) {
     if (!speciesCode) {
-      var species = ((DATA.lifelist && DATA.lifelist.species) || [])
+      var species = ((DATA.recent && DATA.recent.species) || [])
         .find(function (s) { return s.sci === sci; });
       speciesCode = species && species.speciesCode;
     }
@@ -1177,13 +1153,9 @@
     var grid = document.getElementById('atlasGrid');
     if (!grid) return;
 
-    var lifelist = (DATA.lifelist && DATA.lifelist.species) || [];
     var recent = (DATA.recent && DATA.recent.species) || [];
-    // Window count lookup: sci -> count in current window.
-    var winBySci = {};
-    recent.forEach(function (s) { winBySci[s.sci] = +s.n; });
 
-    if (!lifelist.length) {
+    if (!recent.length) {
       grid.innerHTML = '<div class="atlas-empty">' +
         '<p>No birds detected yet.</p>' +
         '<p class="hint">The atlas fills up as BirdNET-Pi identifies new species.</p>' +
@@ -1191,23 +1163,13 @@
       return;
     }
 
-    // Only show species heard in the selected, bounded window.
-    var filtered = lifelist.filter(function (s) { return (winBySci[s.sci] || 0) > 0; });
-    if (!filtered.length) {
-      grid.innerHTML = '<div class="atlas-empty">' +
-        '<p>No detections in this window.</p>' +
-        '<p class="hint">Try a longer time window.</p>' +
-        '</div>';
-      return;
-    }
-
     // Sort by the atlas-sort segmented control (defaults to "count" =
     // most-heard in the selected window).
     var sortMode = (window.__atlasSort) || 'count';
-    var species = filtered.slice();
+    var species = recent.slice();
     if (sortMode === 'count') {
       species.sort(function (a, b) {
-        return (winBySci[b.sci] || 0) - (winBySci[a.sci] || 0);
+        return (+b.n || 0) - (+a.n || 0);
       });
     } else if (sortMode === 'recent') {
       species.sort(function (a, b) {
@@ -1219,22 +1181,14 @@
       });
     }
 
-    // A species is a "lifer" in the current view if its first detection
-    // falls inside the selected window.
-    var now = Date.now();
-    var windowStartMs = now - currentHours * 3600000;
     grid.innerHTML = species.map(function (s) {
-      var win = winBySci[s.sci] || 0;
-      var firstMs = Date.parse((s.first_seen || '').replace(' ', 'T'));
-      var isLifer = !isNaN(firstMs) && firstMs >= windowStartMs;
       var sketchSrc = apiUrl('/avian/api/cutout.php?sci=') + encodeURIComponent(s.sci) +
         (s.com ? '&com=' + encodeURIComponent(s.com) : '') +
         '&v=' + SKETCH_VERSION;
       // Show only the count for the selected, bounded observation window.
-      var statRows = '<div><span class="n">' + fmtNK(win) + '</span><span class="lbl-inline">' + windowLabel(currentHours) + '</span></div>';
+      var statRows = '<div><span class="n">' + fmtNK(+s.n || 0) + '</span><span class="lbl-inline">' + windowLabel(currentHours) + '</span></div>';
       return ''
         + '<article class="bird-card" data-sci="' + s.sci + '">'
-        + (isLifer ? '<span class="lifer-badge" title="new to the life list in this window">lifer</span>' : '')
         + '<div class="stat">' + statRows + '</div>'
         + '<div class="img-wrap">'
         + '<img loading="lazy" decoding="async" src="' + sketchSrc + '" alt="' + s.com + '">'
@@ -1285,19 +1239,15 @@
     if (force) forceRefreshOnce = true;
     return Promise.all([
       fetchJson(birdApi('action=stats')).catch(function () { return null; }),
-      fetchJson(birdApi('action=lifelist')).catch(function () { return null; }),
       fetchJson(birdApi('action=timeseries&days=30')).catch(function () { return null; }),
-      fetchJson(birdApi('action=firstseen&limit=10')).catch(function () { return null; }),
       fetchJson(birdApi('action=recent&hours=' + forHours)).catch(function () { return null; }),
     ]).then(function (parts) {
       forceRefreshOnce = false;
       DATA.stats = parts[0];
-      DATA.lifelist = parts[1];
-      DATA.timeseries = parts[2];
-      DATA.firstseen = parts[3];
+      DATA.timeseries = parts[1];
       // Only accept the recent slice if the window hasn't changed
       // since this poll started - otherwise keep what's there.
-      if (forHours === currentHours && parts[4]) DATA.recent = parts[4];
+      if (forHours === currentHours && parts[2]) DATA.recent = parts[2];
       recomputeDerived();
       renderTimeIndependent(animate);
       renderCollageFromData(animate);
@@ -1863,9 +1813,9 @@
     return 'rare';
   }
   function sketchSrc(sci, pose) {
-    // Look up the common name from the lifelist so the worker's JIT
+    // Look up the common name from the current window data so the worker's JIT
     // Gemini prompt is right for a never-pre-rendered species.
-    var sp = ((DATA.lifelist && DATA.lifelist.species) || [])
+    var sp = ((DATA.recent && DATA.recent.species) || [])
       .find(function (s) { return s.sci === sci; });
     var com = sp ? (sp.com || '') : '';
     var base = apiUrl('/avian/api/cutout.php?sci=') + encodeURIComponent(sci) +
@@ -1955,7 +1905,7 @@
     document.body.style.overflow = 'hidden';
     morphModalOpen(modal.querySelector('.modal-card'), sourceCard);
 
-    // Species detail (lifelist row + every detection).
+    // Species detail summary + every detection.
     var loadSpecies = SPECIES_CACHE[sci]
       ? Promise.resolve(SPECIES_CACHE[sci])
       : fetchJson(birdApi('action=species&sci=' + encodeURIComponent(sci))).then(function (j) {
@@ -2905,8 +2855,8 @@
   */
 
   // Any element with data-sci is a "jump to that bird's atlas card"
-  // affordance: atlas cards themselves, stats list rows (top species /
-  // first detections), stats timeline squares, and any future surface
+  // affordance: atlas cards themselves, stats list rows (top species),
+  // stats timeline squares, and any future surface
   // that wants to point at a bird. Action chips inside cards stop
   // propagation themselves.
   function jumpToSci(sci) {

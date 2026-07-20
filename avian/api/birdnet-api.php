@@ -2,7 +2,7 @@
 // AvianVisitors - JSON facade over eBird recent observations and hotspots.
 //
 // Endpoints (?action=...):
-//   stats / lifelist / recent / species / timeseries / firstseen / hotspots
+//   stats / recent / species / timeseries / hotspots
 //
 // Config: avian/data/ebird.json (see ebird.example.json). Override token
 // with env EBIRD_API_KEY. Observations are cached briefly on disk so the
@@ -294,15 +294,6 @@ switch ($action) {
         break;
     }
 
-    case 'lifelist': {
-        $rs = aggregate_species($allObs);
-        usort($rs, function ($a, $b) {
-            return strcmp($a['first_seen'], $b['first_seen']);
-        });
-        echo json_encode(['species' => $rs, 'as_of' => date('c'), 'source' => 'ebird']);
-        break;
-    }
-
     case 'recent': {
         $hours = max(1, min(1000000, (int)($_GET['hours'] ?? 24)));
         // eBird only retains ~30 days on this endpoint; ALL still caps there.
@@ -396,25 +387,6 @@ switch ($action) {
             'as_of' => date('c'),
             'source' => 'ebird',
         ]);
-        break;
-    }
-
-    case 'firstseen': {
-        $limit = max(1, min(50, (int)($_GET['limit'] ?? 10)));
-        $rs = aggregate_species($allObs);
-        usort($rs, function ($a, $b) {
-            return strcmp($b['first_seen'], $a['first_seen']);
-        });
-        $out = [];
-        foreach (array_slice($rs, 0, $limit) as $s) {
-            $out[] = [
-                'sci' => $s['sci'],
-                'com' => $s['com'],
-                'first_seen' => $s['first_seen'],
-                'total' => $s['n'],
-            ];
-        }
-        echo json_encode(['species' => $out, 'as_of' => date('c'), 'source' => 'ebird']);
         break;
     }
 
