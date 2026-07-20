@@ -37,19 +37,42 @@
     </div>
     <button type="button" class="stats-help window-help" id="windowHelp" aria-label="How time windows work">?</button>
   </div>
-  <button class="menu-btn" id="menuBtn">menu</button>
+  <div class="menu-actions" aria-label="Settings and information">
+    <button type="button" class="menu-btn" id="locationBtn" aria-label="Location settings" aria-expanded="false" title="Location settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+    </button>
+    <button type="button" class="menu-btn" id="refreshBtn" aria-label="Refresh data settings" aria-expanded="false" title="Refresh data settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>
+    </button>
+    <button type="button" class="menu-btn" id="infoBtn" aria-label="About this project" aria-expanded="false" title="About this project">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".7" fill="currentColor" stroke="none"/></svg>
+    </button>
+  </div>
 </header>
 
-<aside id="menu-dd" aria-hidden="true">
-  <div id="dd-locked">
+<aside id="location-dd" class="menu-dd" aria-hidden="true">
+  <div id="location-locked">
     <form class="lock-row" id="unlockForm">
       <input id="lockPass" type="password" placeholder="password" autocomplete="current-password">
       <button type="submit" aria-label="unlock">→</button>
     </form>
     <p class="lock-hint" id="lockHint">enter password to unlock tools.</p>
   </div>
-  <nav class="menu-items" id="dd-items"></nav>
-  <p class="built-by">originally by <a href="https://theodore.net" target="_blank" rel="noopener">teddy</a> · forked  on <a href="https://github.com/Nicholas-Nazario/AvianVisitors-eBird/tree/avian-visitors" target="_blank" rel="noopener">github</a></p>
+  <nav class="menu-items" id="location-items"></nav>
+</aside>
+
+<aside id="refresh-dd" class="menu-dd" aria-hidden="true">
+  <div id="refresh-locked">
+    <p class="lock-hint">unlock location settings first.</p>
+  </div>
+  <nav class="menu-items" id="refresh-items"></nav>
+</aside>
+
+<aside id="info-dd" class="menu-dd info-dd" aria-hidden="true">
+  <h3 class="info-title">ABOUT</h3>
+  <p class="about-project">This project is a fork of Teddy Warner's <a href="https://theodore.net/projects/AvianVisitors/" target="_blank" rel="noopener">Avian Visitors</a> project. That project was centered on detecting birds with a Raspberry Pi, a microphone, and BirdNET. I live in NYC and while there are many birds to observe here, most of them are not outside my window. So, this fork of Avian Visitors uses <a href="https://ebird.org/home" target="_blank" rel="noopener">CornellLab eBird</a> data to visualize the birds that people have reported observing near any lat/lon location or <a href="https://ebird.org/region/US/hotspots" target="_blank" rel="noopener">hotspot</a>. I hope you enjoy it 😁🦤</p>
+  <br aria-hidden="true">
+  <p class="built-by">originally by <a href="https://theodore.net" target="_blank" rel="noopener">teddy</a> · forked on <a href="https://github.com/Nicholas-Nazario/AvianVisitors-eBird/tree/avian-visitors" target="_blank" rel="noopener">github</a></p>
 </aside>
 
 <main class="stage">

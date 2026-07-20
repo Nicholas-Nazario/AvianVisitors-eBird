@@ -18,3 +18,6 @@ avian/data/ebird-hotspots-*.json
 .claude/
 avian/assets/references/
 avian/assets/_legacy/
+
+# Local-only agent working material
+docs/agent-instructions/

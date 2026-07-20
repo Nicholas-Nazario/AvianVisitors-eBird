@@ -1278,27 +1278,60 @@
   startPolling();
 
   // ---- Menu dropdown ----
-  var dd = document.getElementById('menu-dd');
-  var menuBtn = document.getElementById('menuBtn');
-  var locked = document.getElementById('dd-locked');
-  var items = document.getElementById('dd-items');
+  var locationDd = document.getElementById('location-dd');
+  var refreshDd = document.getElementById('refresh-dd');
+  var infoDd = document.getElementById('info-dd');
+  var locationBtn = document.getElementById('locationBtn');
+  var refreshMenuBtn = document.getElementById('refreshBtn');
+  var infoBtn = document.getElementById('infoBtn');
+  var locationLocked = document.getElementById('location-locked');
+  var refreshLocked = document.getElementById('refresh-locked');
+  var locationItems = document.getElementById('location-items');
+  var refreshItems = document.getElementById('refresh-items');
   var lockHint = document.getElementById('lockHint');
-  function openDd() {
-    dd.classList.add('open');
-    dd.setAttribute('aria-hidden', 'false');
-    if (locked.style.display !== 'none') {
+  var menuEntries = [
+    { button: locationBtn, panel: locationDd },
+    { button: refreshMenuBtn, panel: refreshDd },
+    { button: infoBtn, panel: infoDd }
+  ];
+  function closeDd(panel) {
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+    var entry = menuEntries.find(function (item) { return item.panel === panel; });
+    if (entry) entry.button.setAttribute('aria-expanded', 'false');
+  }
+  function openDd(panel) {
+    if (panel === refreshDd && locationLocked.style.display !== 'none') {
+      openDd(locationDd);
+      return;
+    }
+    menuEntries.forEach(function (item) {
+      if (item.panel !== panel) closeDd(item.panel);
+    });
+    panel.classList.add('open');
+    panel.setAttribute('aria-hidden', 'false');
+    var entry = menuEntries.find(function (item) { return item.panel === panel; });
+    if (entry) entry.button.setAttribute('aria-expanded', 'true');
+    if (panel === locationDd && locationLocked.style.display !== 'none') {
       setTimeout(function () {
         var pass = document.getElementById('lockPass');
         if (pass) pass.focus();
       }, 100);
     }
   }
-  function closeDd() { dd.classList.remove('open'); dd.setAttribute('aria-hidden', 'true'); }
-  function toggleDd() { dd.classList.contains('open') ? closeDd() : openDd(); }
-  menuBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleDd(); });
-  staticLocation.addEventListener('click', function (e) { e.stopPropagation(); openDd(); });
-  document.addEventListener('click', function (e) { if (!dd.contains(e.target) && e.target !== menuBtn) closeDd(); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDd(); });
+  function toggleDd(panel) { panel.classList.contains('open') ? closeDd(panel) : openDd(panel); }
+  menuEntries.forEach(function (entry) {
+    entry.button.addEventListener('click', function (e) { e.stopPropagation(); toggleDd(entry.panel); });
+  });
+  staticLocation.addEventListener('click', function (e) { e.stopPropagation(); openDd(locationDd); });
+  document.addEventListener('click', function (e) {
+    if (!menuEntries.some(function (item) { return item.panel.contains(e.target) || item.button === e.target; })) {
+      menuEntries.forEach(function (item) { closeDd(item.panel); });
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') menuEntries.forEach(function (item) { closeDd(item.panel); });
+  });
 
   // Probe menu.php with no Authorization header. On a LAN deploy
   // (AV_REQUIRE_AUTH=0) it returns 200 immediately so the drawer
@@ -1348,8 +1381,10 @@
 
   // Render the unlocked drawer: eBird location + poll controls.
   function renderMenu(menu) {
-    locked.style.display = 'none';
-    items.classList.add('show');
+    locationLocked.style.display = 'none';
+    refreshLocked.style.display = 'none';
+    locationItems.classList.add('show');
+    refreshItems.classList.add('show');
     var geoEsc = function (s) {
       return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1381,7 +1416,7 @@
         + '    </div>'
       : '';
 
-    items.innerHTML =
+    locationItems.innerHTML =
       '<div class="menu-geo" id="menuGeo">'
       + '  <div class="menu-section">'
       + '    <h3>Location</h3>'
@@ -1410,8 +1445,11 @@
       + '    </div>'
       + hotspotControls
       + '  </div>'
+      + '</div>';
+    refreshItems.innerHTML =
+      '<div class="menu-geo" id="menuRefresh">'
       + '  <div class="menu-section">'
-      + '    <h3>Refresh</h3>'
+      + '    <h3>Refresh data</h3>'
       + '    <div class="menu-row">'
       + '      <div><span class="label">Auto refresh</span>'
       + '        <span class="hint">how often to pull eBird</span></div>'
@@ -1426,11 +1464,12 @@
       + '    </div>'
       + '  </div>'
       + '</div>'
-      + (linksHtml ? '<div class="menu-links">' + linksHtml + '</div>' : '');
+      + (linksHtml ? '<div class="menu-links">' + linksHtml + '</div>' : '')
+      + '</div>';
 
-    var menuLinks = items.querySelector('.menu-links');
+    var menuLinks = refreshItems.querySelector('.menu-links');
     if (menuLinks) menuLinks.addEventListener('click', function (ev) {
-      if (ev.target.closest('a')) closeDd();
+      if (ev.target.closest('a')) closeDd(refreshDd);
     });
 
     var latIn = document.getElementById('geoLat');

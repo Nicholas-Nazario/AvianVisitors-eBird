@@ -135,13 +135,15 @@
   }
   .top .window-pick button:hover { color: var(--ink); }
   .top .window-pick button[aria-current="true"] { color: var(--ink); }
+  .menu-actions { display: inline-flex; align-items: center; gap: 7px; }
   .menu-btn {
     background: var(--paper); border: 0; color: var(--ink);
-    font: 11px/1 ui-monospace, Menlo, monospace; padding: 9px 14px 8px;
+    width: 36px; height: 36px; padding: 8px;
     border-radius: 999px; cursor: pointer; letter-spacing: 0.18em; text-transform: lowercase;
     box-shadow: var(--raised);
     transition: transform 160ms ease;
   }
+  .menu-btn svg { display: block; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .menu-btn:hover { transform: translateY(-1px); }
   .menu-btn:active { transform: translateY(0); }
   /* Compact top bar on mobile - the time-window pill goes from
@@ -152,7 +154,9 @@
     .top .window-pick button {
       font-size: 8.5px; padding: 6px 10px; letter-spacing: 0.12em;
     }
-    .menu-btn { font-size: 9px; padding: 6px 11px 5px; letter-spacing: 0.14em; }
+    .menu-actions { gap: 5px; }
+    .menu-btn { width: 31px; height: 31px; padding: 6px; }
+    .menu-btn svg { width: 19px; height: 19px; }
     .return-to-atlas { top: 10px; left: 10px; padding: 5px 10px; font-size: 8.5px; }
   }
   @media (max-width: 420px) {
@@ -190,8 +194,8 @@
   }
 
   /* ============ Menu dropdown ============ */
-  #menu-dd {
-    position: fixed; top: 58px; right: 28px; z-index: 25;
+  .menu-dd {
+    position: fixed; top: 68px; right: 28px; z-index: 25;
     width: 360px; max-width: calc(100vw - 24px);
     max-height: calc(100vh - 80px); overflow: auto;
     background: var(--paper); border-radius: 12px;
@@ -199,7 +203,24 @@
     padding: 14px; opacity: 0; transform: translateY(-6px);
     pointer-events: none; transition: opacity 200ms ease, transform 200ms ease;
   }
-  #menu-dd.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .menu-dd.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  #location-dd { right: 114px; }
+  #refresh-dd { right: 71px; }
+  #info-dd { width: 420px; }
+  .info-title {
+    margin: 0 0 10px 0;
+    color: var(--ink);
+    font: 700 9px/1 ui-monospace, Menlo, monospace;
+    letter-spacing: 0.20em;
+  }
+  .about-project {
+    margin: 0;
+    color: var(--ink);
+    font: 14px/1.5 ui-serif, Georgia, serif;
+  }
+  .about-project a { color: inherit; text-underline-offset: 2px; }
+  .about-project a:hover { color: var(--accent); }
+  .info-dd .built-by { margin-top: 14px; white-space: nowrap; }
 
   .lock-row {
     display: flex; gap: 6px; align-items: stretch;
@@ -1232,7 +1253,7 @@
   /* Mobile compact: drawer takes near-full width, admin pads tighter,
      section heads + cards downsize. */
   @media (max-width: 700px) {
-    #menu-dd { top: 50px; right: 8px; left: 8px; width: auto; padding: 10px; }
+    .menu-dd { top: 50px; right: 8px !important; left: 8px; width: auto; padding: 10px; }
     .admin-screen { inset: 52px 0 60px 0; }
     .admin-frame { padding: 0 14px 32px; }
     .admin-title { margin-bottom: 18px; }
@@ -1624,5 +1645,7 @@
  * type the basic-auth password before items unlock. Pair with
  * AV_REQUIRE_AUTH=1 in php-fpm env + Caddy basic_auth on /avian/api/.
  * See avian/forwarding/. */
-body.av-local #dd-locked { display: none; }
-body.av-local #dd-items  { display: block; }
+body.av-local #location-locked,
+body.av-local #refresh-locked { display: none; }
+body.av-local #location-items,
+body.av-local #refresh-items  { display: block; }
