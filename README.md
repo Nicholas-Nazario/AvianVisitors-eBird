@@ -1,6 +1,6 @@
 # AvianVisitors
 
-Live bird collage website — pared down from the BirdNET-Pi + microphone fork.
+Live bird collage website powered by eBird observation data. Pared down from the BirdNET-Pi + microphone fork by [Teddy Warner](https://github.com/Twarner491/AvianVisitors).
 Illustrations render from species data keyed by scientific name (`sci`).
 
 ## Local run
@@ -26,8 +26,8 @@ Hotspot mode accepts one or more repeated hotspot IDs, up to five:
 `?action=recent&mode=hotspot&regionCode[]=L123456&regionCode[]=L654321`.
 Duplicate IDs are collapsed. The API fetches and caches each hotspot separately,
 then combines observations before producing its normal `stats`, `recent`,
-`species`, and `timeseries` response shapes. Species detections are summed;
-timeseries detection totals are summed while each species counts once per day.
+`species`, and `timeseries` response shapes. Species observations are summed;
+timeseries observation totals are summed while each species counts once per day.
 
 ## Layout
 
@@ -42,7 +42,7 @@ serve.sh
 ```
 
 eBird `sciName` → illustration slug (`Branta canadensis` → `branta-canadensis.png`).
-`howMany` sums into collage weight `n`; `obsDt` becomes `last_seen`.
+`howMany` sums into collage weight `n`; `obsDt` becomes `last_observed`.
 
 ## API (`avian/api/birdnet-api.php`)
 
@@ -50,8 +50,8 @@ The collage frontend polls these about every 30s (and when you change the time w
 
 | Call | What it returns | What the UI uses it for |
 |---|---|---|
-| **`recent&hours=12`** | Species seen in that window (`sci`, `com`, `n`, `last_seen`) | Collage tiles, atlas cards + stats “top species” / timeline. `hours` comes from the 1H / 3H / 6H / 12H / 24H / 7D / 30D picker. |
-| **`timeseries&days=30`** | Daily + by-hour counts | Stats charts (detections over days / hours of day). |
+| **`recent&hours=12`** | Species observed in that window (`sci`, `com`, `n`, `last_observed`) | Collage tiles, atlas cards + stats “top species” / timeline. `hours` comes from the 1H / 3H / 6H / 12H / 24H / 7D / 30D picker. |
+| **`timeseries&days=30`** | Daily + by-hour counts | Stats charts (observations over days / hours of day). |
 | **`stats`** | Totals / today / last hour / week | “By Period” summary numbers. |
 
 Hotspot requests with no ID, an invalid ID, or more than five submitted IDs

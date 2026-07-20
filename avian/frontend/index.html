@@ -70,7 +70,7 @@
 
 <aside id="info-dd" class="menu-dd info-dd" aria-hidden="true">
   <h3 class="info-title">ABOUT</h3>
-  <p class="about-project">This project is a fork of Teddy Warner's <a href="https://theodore.net/projects/AvianVisitors/" target="_blank" rel="noopener">Avian Visitors</a> project. That project was centered on detecting birds with a Raspberry Pi, a microphone, and BirdNET. I live in NYC and while there are many birds to observe here, most of them are not outside my window. So, this fork of Avian Visitors uses <a href="https://ebird.org/home" target="_blank" rel="noopener">CornellLab eBird</a> data to visualize the birds that people have reported observing near any lat/lon location or <a href="https://ebird.org/region/US/hotspots" target="_blank" rel="noopener">hotspot</a>. I hope you enjoy it 😁🦤</p>
+  <p class="about-project">This project is a fork of Teddy Warner's <a href="https://theodore.net/projects/AvianVisitors/" target="_blank" rel="noopener">Avian Visitors</a> project. I live in NYC and while there are many birds to observe here, most of them are not outside my window. This fork uses <a href="https://ebird.org/home" target="_blank" rel="noopener">CornellLab eBird</a> observation data to visualize birds near any lat/lon location or <a href="https://ebird.org/region/US/hotspots" target="_blank" rel="noopener">hotspot</a>. I hope you enjoy it 😁🦤</p>
   <br aria-hidden="true">
   <p class="built-by">originally by <a href="https://theodore.net" target="_blank" rel="noopener">teddy</a> · forked on <a href="https://github.com/Nicholas-Nazario/AvianVisitors-eBird/tree/avian-visitors" target="_blank" rel="noopener">github</a></p>
 </aside>
@@ -78,7 +78,7 @@
 <main class="stage">
   <header class="static-head">
     <button type="button" class="pre" id="aboutLink">the birds</button>
-    <h1 id="staticTitle">Seen Recently</h1>
+    <h1 id="staticTitle">Observed Recently</h1>
     <button type="button" id="staticLocation" aria-label="change bird location">near 40.79, -73.97</button>
   </header>
   <div class="views" id="views">
@@ -92,9 +92,9 @@
     <section class="view" id="v1" aria-label="Stats">
       <div class="stats-grid">
         <div class="stats-timeline" id="statsTimeline">
-          <!-- Editorial detection timeline. Each column = one species
+          <!-- Editorial observation timeline. Each column = one species
                from the current time window. The black square's vertical
-               position encodes detection count; the species name + sci
+               position encodes observation count; the species name + sci
                name sit rotated below. Vertical hairlines separate
                columns. Hard-rendered by renderStatsTimeline(). -->
         </div>
@@ -104,7 +104,7 @@
               <h3>Top Species</h3>
               <button type="button" class="stats-help" data-stats-help="table" aria-label="How Top Species works">?</button>
             </div>
-            <small id="statsTopSpecCap">most-spotted, current window</small>
+            <small id="statsTopSpecCap">most-observed, current window</small>
             <ol id="statsTopSpec"></ol>
           </div>
         </aside>
@@ -116,11 +116,11 @@
       <div class="atlas-controls">
         <div class="atlas-sort" id="atlasSort" role="tablist" aria-label="sort atlas">
           <i class="seg-pill" aria-hidden="true"></i>
-          <button data-sort="count"  type="button" aria-current="true" aria-label="most heard">
+          <button data-sort="count"  type="button" aria-current="true" aria-label="most observed">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
               <path d="M2 12 V8"/><path d="M6 12 V5"/><path d="M10 12 V3"/>
             </svg>
-            <span class="tip">most heard</span>
+            <span class="tip">most observed</span>
           </button>
           <button data-sort="recent" type="button" aria-label="most recent">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
@@ -179,7 +179,7 @@
         <p class="sci" id="modalSci"></p>
         <div class="modal-stats">
           <div><span class="n" id="modalWindow">-</span><span class="lbl" id="modalWindowLbl">window</span></div>
-          <div><span class="n" id="modalFirstSeen">-</span><span class="lbl">first heard</span></div>
+          <div><span class="n" id="modalFirstObserved">-</span><span class="lbl">first observed</span></div>
         </div>
         <p class="desc placeholder" id="modalDesc">Loading description...</p>
         <div class="modal-meta">
@@ -201,7 +201,7 @@
     <button type="button" class="modal-close" data-close="1" aria-label="close">×</button>
     <p class="about-eyebrow">the birds</p>
     <h2 id="aboutTitle">The birds outside your window</h2>
-    <p class="about-body">A tiny microphone identifies every passing bird with Cornell's <a href="https://birdnet.cornell.edu/" target="_blank" rel="noopener">BirdNET</a>. Each species shows up as an illustration in the collage, sized by how often it's been heard.</p>
+    <p class="about-body">Each observed species shows up as an illustration in the collage, sized by how many birds were observed.</p>
     <button type="button" class="about-explore" data-close="1">explore the birds →</button>
     </div>
 </div>
@@ -211,10 +211,10 @@
   <div class="about-card" role="document">
     <button type="button" class="modal-close" data-close="1" aria-label="close">×</button>
     <p class="about-eyebrow">the stats</p>
-    <h2 id="statsGraphHelpTitle">How Spotted Species works</h2>
+    <h2 id="statsGraphHelpTitle">How Observed Species works</h2>
     <div class="about-body">
-      <p><strong>Spotted Species</strong> shows the species spotted in the selected time window. Each column is one species. Its position along the bottom is based on when it was last spotted, from oldest to newest.</p>
-      <p>The square's height shows how many birds of that species were reported. A taller square means more birds. The graph may show only the most-spotted species when there are too many to fit.</p>
+      <p><strong>Observed Species</strong> shows the species observed in the selected time window. Each column is one species. Its position along the bottom is based on when it was last observed, from oldest to newest.</p>
+      <p>The square's height shows how many birds of that species were observed. A taller square means more birds. The graph may show only the most-observed species when there are too many to fit.</p>
     </div>
   </div>
 </div>
@@ -227,7 +227,7 @@
     <h2 id="statsTableHelpTitle">How Top Species works</h2>
     <div class="about-body">
       <p><strong>Top Species</strong> lists the five species with the highest bird counts in the selected time window.</p>
-      <p>The number next to each species is the total number of birds reported. It counts birds, rather than simply counting how many sightings were recorded.</p>
+      <p>The number next to each species is the total number of birds observed. It counts birds, rather than simply counting observation records.</p>
     </div>
   </div>
 </div>

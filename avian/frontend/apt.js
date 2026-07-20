@@ -60,8 +60,8 @@
 
   // Each view's title text. The shared static-head shows one of these
   // based on the current view; identical adjacent values mean the title
-  // stays put with no fade (collage and stats both say Seen Recently).
-  var VIEW_TITLES = ['Seen Recently', 'Seen Recently', 'Avian Visitors'];
+  // stays put with no fade (collage and stats both say Observed Recently).
+  var VIEW_TITLES = ['Observed Recently', 'Observed Recently', 'Avian Visitors'];
   var staticHead = document.querySelector('.static-head');
   var staticTitle = document.getElementById('staticTitle');
   var staticLocation = document.getElementById('staticLocation');
@@ -230,7 +230,7 @@
   // and Phoebe n=26 all hit ceiling and rendered the same size) AND
   // it allowed total area to overflow narrow viewports so birds got
   // dropped off-screen. Normalising fixes both - relative size
-  // tracks the relative call ratio, and total area can never exceed
+      // tracks the relative observation ratio, and total area can never exceed
   // what the iterative shrink loop is willing to scale into the
   // viewport.
   function tuning(n) {
@@ -428,12 +428,12 @@
     collagePlaced = [];
     collageHovered = null;
     if (!items.length) {
-      // No birds heard yet: show an empty nest where the collage would be, with
+      // No birds observed yet: show an empty nest where the collage would be, with
       // the status line beneath it. The frame (shoot.py) overrides the .empty
       // text for the e-ink panel; the nest illustration is shared by both.
       collage.innerHTML = '<div class="empty-nest">' +
         '<img class="nest-img" src="nest.webp" alt="an empty nest" decoding="async">' +
-        '<p class="empty">no birds heard in this window.</p></div>';
+        '<p class="empty">no birds observed in this window.</p></div>';
       // Bloom the nest in on the same cues as the collage (first load, window
       // change, view switch); a silent poll/resize renders without animate. The
       // class self-clears after the worst case so a throttled tab still ends
@@ -462,7 +462,7 @@
 
     // Step 1: build tiles + assign each a count-weighted SCORE (not a
     // final area yet). area-from-count uses a sub-linear exponent so
-    // a 400-detection bird is visibly larger than a 30-detection bird
+    // a 400-observation bird is visibly larger than a 30-observation bird
     // without dwarfing it.
     var tiles = items.map(function (s) {
       var base = slugify(s.sci);
@@ -491,7 +491,7 @@
     Object.keys(collagePose).forEach(function (k) { if (!present[k]) delete collagePose[k]; });
 
     // Step 2: normalise so sum(area) ≈ budget. Then floor each tile
-    // at minArea so even a 1-call bird stays legible.
+    // at minArea so even a 1-observation bird stays legible.
     var sumScore = tiles.reduce(function (a, t) { return a + t.score; }, 0) || 1;
     tiles.forEach(function (t) {
       t.area = Math.max(minArea, budget * t.score / sumScore);
@@ -571,7 +571,7 @@
     placed.forEach(function (r) {
       var s = r.data;
       // com flows through so the worker's JIT Gemini job uses the right
-      // common name in its prompt for a freshly-detected species.
+      // common name in its prompt for a freshly-observed species.
       // &v=IMG_VERSION busts CF edge cache when we re-render any species.
       var img = apiUrl('/avian/api/cutout.php?sci=') + encodeURIComponent(s.sci) +
         (s.com ? '&com=' + encodeURIComponent(s.com) : '') +
@@ -584,11 +584,10 @@
       btn.setAttribute('aria-label', s.com);
       // Fallback for keyboard / screen-reader users - the visible hover
       // pill below is the primary affordance for sighted mouse users.
-      // "calls" (not "heard") because one bird can rack up dozens of
-      // detections in a session; "heard" implies distinct individuals.
+      // eBird's howMany value represents observed birds in the record.
       var titleN = +s.n || 0;
       btn.title = (s.com || s.sci) + ' · ' + fmtN(titleN) + ' ' +
-        (titleN === 1 ? 'call' : 'calls') + ' ' + windowLabel(currentHours);
+        (titleN === 1 ? 'observation' : 'observations') + ' ' + windowLabel(currentHours);
       btn.style.left = r.x + 'px';
       btn.style.top = r.y + 'px';
       btn.style.width = r.fullW + 'px';
@@ -761,7 +760,7 @@
       if (hit) {
         var s = hit.data;
         var n = +s.n || 0;
-        var noun = (n === 1) ? 'call' : 'calls';
+        var noun = (n === 1) ? 'observation' : 'observations';
         tip.innerHTML = '<span class="ct-name">' + (s.com || s.sci) + '</span>'
           + '<span class="ct-w"> - </span>'
           + '<span class="ct-n">' + fmtN(n) + '</span>'
@@ -811,7 +810,7 @@
 
   // Collage renders whatever is in DATA.recent.species. When the picker
   // changes, refreshRecent() refetches and re-renders. Empty state shows
-  // a "no detections in this window" message.
+  // a "no observations in this window" message.
   function renderCollageFromData(animate) {
     var items = (DATA.recent && DATA.recent.species) || [];
     renderCollage(items, animate);
@@ -938,9 +937,9 @@
 
   // Derived chart arrays, backfilled so 30 buckets always exist.
   var STATS = {
-    detPerDay: new Array(STATS_DAYS).fill(0), // [day] total detections
+    obsPerDay: new Array(STATS_DAYS).fill(0), // [day] total observations
     specPerDay: new Array(STATS_DAYS).fill(0), // [day] unique species
-    byHour: new Array(24).fill(0),         // [hour-of-day] detections
+    byHour: new Array(24).fill(0),         // [hour-of-day] observations
   };
 
   function fetchJson(url) {
@@ -952,14 +951,14 @@
     // Build a continuous array of (days) length, ending today.
     var byDate = {};
     (daily || []).forEach(function (row) { byDate[row.date] = row; });
-    var out = new Array(days).fill(null).map(function () { return { detections: 0, species: 0 }; });
+    var out = new Array(days).fill(null).map(function () { return { observations: 0, species: 0 }; });
     var today = new Date();
     for (var i = 0; i < days; i++) {
       var d = new Date(today);
       d.setDate(today.getDate() - (days - 1 - i));
       var key = d.toISOString().slice(0, 10);
       if (byDate[key]) {
-        out[i].detections = +byDate[key].detections || 0;
+        out[i].observations = +byDate[key].observations || 0;
         out[i].species = +byDate[key].species || 0;
       }
     }
@@ -969,10 +968,10 @@
   function recomputeDerived() {
     var ts = DATA.timeseries || { daily: [], by_hour: [] };
     var rows = backfillDaily(ts.daily, STATS_DAYS);
-    STATS.detPerDay = rows.map(function (r) { return r.detections; });
+    STATS.obsPerDay = rows.map(function (r) { return r.observations; });
     STATS.specPerDay = rows.map(function (r) { return r.species; });
     var byHour = new Array(24).fill(0);
-    (ts.by_hour || []).forEach(function (r) { byHour[+r.hour] = +r.detections; });
+    (ts.by_hour || []).forEach(function (r) { byHour[+r.hour] = +r.observations; });
     STATS.byHour = byHour;
   }
 
@@ -988,10 +987,10 @@
     if (!tl) return;
     var all = ((DATA.recent && DATA.recent.species) || []).slice();
     if (!all.length) {
-      tl.innerHTML = '<div class="stats-tl-empty">no detections in this window</div>'
-        + '<div class="stats-tl-footer"><div class="stats-tl-footer-title"><strong>Species spotted</strong>'
+      tl.innerHTML = '<div class="stats-tl-empty">no observations in this window</div>'
+        + '<div class="stats-tl-footer"><div class="stats-tl-footer-title"><strong>Species observed</strong>'
         + '<button type="button" class="stats-help" data-stats-help="graph" aria-label="How the graph works">?</button></div>'
-        + '<small>no detections in this window</small></div>';
+        + '<small>no observations in this window</small></div>';
       return;
     }
 
@@ -1012,7 +1011,7 @@
     // X-axis is time: order the chosen columns oldest -> newest.
     function parseTs(s) { return s ? Date.parse(s.replace(' ', 'T')) : NaN; }
     species.sort(function (a, b) {
-      var ta = parseTs(a.last_seen), tb = parseTs(b.last_seen);
+      var ta = parseTs(a.last_observed), tb = parseTs(b.last_observed);
       if (isNaN(ta)) return 1;
       if (isNaN(tb)) return -1;
       return ta - tb;
@@ -1072,17 +1071,17 @@
         + '<div class="stats-tl-square" style="bottom:' + bottomPct.toFixed(1) + '%;width:' + sq.toFixed(1) + 'px;height:' + sq.toFixed(1) + 'px"></div>'
         + '<div class="stats-tl-label" style="bottom:calc(' + bottomPct.toFixed(1) + '% + ' + (sq + LABEL_GAP) + 'px)"><span class="com">' + (s.com || s.sci) + '</span><span class="sci">' + s.sci + '</span></div>'
         + '</div>';
-      var lab = fmtTs(parseTs(s.last_seen));
+      var lab = fmtTs(parseTs(s.last_observed));
       if (lab) xaxis += '<span class="stats-tl-xtick" style="left:' + centerPct.toFixed(3) + '%">' + lab + '</span>';
     });
 
-    var note = trimmed ? C + ' most spotted of ' + all.length : 'all species in this window';
+    var note = trimmed ? C + ' most observed of ' + all.length : 'all species in this window';
     tl.innerHTML =
       '<div class="stats-tl-yaxis">' + yaxis + '</div>'
       + '<div class="stats-tl-plot"' + (isMobile ? ' style="width:' + Math.round(plotW) + 'px"' : '') + '>'
       + gridlines + cols + xaxis
       + '</div>'
-      + '<div class="stats-tl-footer"><div class="stats-tl-footer-title"><strong>Species spotted</strong>'
+      + '<div class="stats-tl-footer"><div class="stats-tl-footer-title"><strong>Species observed</strong>'
       + '<button type="button" class="stats-help" data-stats-help="graph" aria-label="How the graph works">?</button></div>'
       + '<small>' + note + '</small></div>';
     if (animate) playStatsEntrance();
@@ -1121,16 +1120,16 @@
     var recent = DATA.recent || { species: [] };
 
     // Top Species - top 5 species in the current window. ./avian/api/birdnet-api.php?action=recent
-    // already returns species sorted by last_seen DESC; re-sort by count.
+    // already returns species sorted by last_observed DESC; re-sort by count.
     var ranked = (recent.species || [])
       .slice()
       .sort(function (a, b) { return (+b.n) - (+a.n); })
       .slice(0, 5);
     document.getElementById('statsTopSpec').innerHTML = ranked.length
       ? ranked.map(function (s, i) { return liRow(pad(i + 1), s.com, fmtN(+s.n), s.sci); }).join('')
-      : liRow('-', 'no detections in window', '');
+      : liRow('-', 'no observations in window', '');
     document.getElementById('statsTopSpecCap').textContent =
-      'most-spotted, ' + windowLabel(currentHours);
+      'most-observed, ' + windowLabel(currentHours);
 
   }
 
@@ -1196,14 +1195,14 @@
 
     if (!recent.length) {
       grid.innerHTML = '<div class="atlas-empty">' +
-        '<p>No birds detected yet.</p>' +
-        '<p class="hint">The atlas fills up as BirdNET-Pi identifies new species.</p>' +
+        '<p>No birds observed yet.</p>' +
+        '<p class="hint">The atlas fills up as new species are observed.</p>' +
         '</div>';
       return;
     }
 
     // Sort by the atlas-sort segmented control (defaults to "count" =
-    // most-heard in the selected window).
+    // most-observed in the selected window).
     var sortMode = (window.__atlasSort) || 'count';
     var species = recent.slice();
     if (sortMode === 'count') {
@@ -1212,7 +1211,7 @@
       });
     } else if (sortMode === 'recent') {
       species.sort(function (a, b) {
-        return (b.last_seen || '').localeCompare(a.last_seen || '');
+        return (b.last_observed || '').localeCompare(a.last_observed || '');
       });
     } else if (sortMode === 'alpha') {
       species.sort(function (a, b) {
@@ -2013,7 +2012,7 @@
     document.getElementById('modalCommon').textContent = '-';
     document.getElementById('modalWindow').textContent = '-';
     document.getElementById('modalWindowLbl').textContent = windowLabel(currentHours);
-    document.getElementById('modalFirstSeen').textContent = '-';
+    document.getElementById('modalFirstObserved').textContent = '-';
     document.getElementById('modalRarity').textContent = '-';
     document.getElementById('modalRarity').classList.remove('rare');
     document.getElementById('modalDesc').textContent = 'Loading description...';
@@ -2046,8 +2045,8 @@
       document.getElementById('modalCommon').textContent = s.com || sci;
       var winRow = ((DATA.recent && DATA.recent.species) || []).filter(function (x) { return x.sci === sci; })[0];
       document.getElementById('modalWindow').textContent = (winRow ? +winRow.n : 0).toLocaleString();
-      document.getElementById('modalFirstSeen').textContent = s.first_seen || '-';
-      var rar = rarityLabel(+s.total || 0, s.first_seen);
+      document.getElementById('modalFirstObserved').textContent = s.first_observed || '-';
+      var rar = rarityLabel(+s.total || 0, s.first_observed);
       var rarEl = document.getElementById('modalRarity');
       rarEl.textContent = rar;
       if (rar === 'rare') rarEl.classList.add('rare');
@@ -2486,8 +2485,8 @@
 
   function renderAdminTools() {
     var actions = [
-      ['restart birdnet_recording', 'picks up live audio from the mic. restart this first if detections stall.', 'birdnet_recording'],
-      ['restart birdnet_analysis', 'runs the neural net on recorded chunks. restart if detections are stuck.', 'birdnet_analysis'],
+      ['restart birdnet_recording', 'picks up live audio from the mic. restart this first if observations stall.', 'birdnet_recording'],
+      ['restart birdnet_analysis', 'runs the neural net on recorded chunks. restart if observations are stuck.', 'birdnet_analysis'],
       ['restart birdnet_log', 'writes the sqlite db. restart if api/stats stops updating.', 'birdnet_log'],
       ['restart spectrogram_viewer', 'live fft view (legacy) - used by /birdnet/spectrogram.', 'spectrogram_viewer'],
       ['restart livestream', 'icecast feed for the drawer live-audio button.', 'livestream'],

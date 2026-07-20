@@ -702,8 +702,8 @@
     .stats-grid { flex: 0 1 auto; margin: auto; }
   }
 
-  /* Editorial detection timeline. One evenly-spaced column per species,
-     ordered by last-detection time (x = time). Black square fills its
+  /* Editorial observation timeline. One evenly-spaced column per species,
+     ordered by last-observed time (x = time). Black square fills its
      column so neighbours touch at the gridline; its height up the column
      encodes count. Small rotated label + per-column timestamp at the
      bottom. Fits the viewport - never scrolls. */
@@ -735,7 +735,7 @@
     transform: translateX(-50%);
     cursor: pointer;
   }
-  /* Faint vertical hairlines at every x-axis tick - the "no detections
+  /* Faint vertical hairlines at every x-axis tick - the "no observations
      in this slice" period reads as the empty space between marks. */
   .stats-tl-gridline {
     position: absolute; top: 0; bottom: 0;
@@ -813,7 +813,7 @@
     text-transform: lowercase; letter-spacing: 0.18em;
   }
   /* Trim note - shown when the plot can't fit every species column and
-     falls back to the most-heard subset. A paper background keeps it
+     falls back to the most-observed subset. A paper background keeps it
      legible even if a tall label reaches the corner behind it. */
   .stats-tl-cap {
     display: none;
@@ -913,7 +913,7 @@
 
   /* ============ View 3 - Atlas ============
      Field-guide grid: one card per species, each card holds the cutout,
-     names, selected-window detection counts, and small action chips for
+     names, selected-window observation counts, and small action chips for
      Wikipedia and eBird. */
   .atlas-controls {
     /* The bar is transparent and floats (z-index) over the scrolling cards;

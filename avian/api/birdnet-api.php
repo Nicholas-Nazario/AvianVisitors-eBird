@@ -261,8 +261,8 @@ function aggregate_species(array $obs): array {
                 'com' => $com,
                 'speciesCode' => trim((string)($row['speciesCode'] ?? '')),
                 'n' => 0,
-                'last_seen' => $dt,
-                'first_seen' => $dt,
+                'last_observed' => $dt,
+                'first_observed' => $dt,
                 'best_conf' => null,
                 'top_file' => null,
                 'top_at' => $dt,
@@ -271,17 +271,17 @@ function aggregate_species(array $obs): array {
         $by[$sci]['n'] += $n;
         if (!empty($row['speciesCode'])) $by[$sci]['speciesCode'] = trim((string)$row['speciesCode']);
         if ($com !== '') $by[$sci]['com'] = $com;
-        if ($dt !== '' && ($by[$sci]['last_seen'] === '' || strcmp($dt, $by[$sci]['last_seen']) > 0)) {
-            $by[$sci]['last_seen'] = $dt;
+        if ($dt !== '' && ($by[$sci]['last_observed'] === '' || strcmp($dt, $by[$sci]['last_observed']) > 0)) {
+            $by[$sci]['last_observed'] = $dt;
             $by[$sci]['top_at'] = $dt;
         }
-        if ($dt !== '' && ($by[$sci]['first_seen'] === '' || strcmp($dt, $by[$sci]['first_seen']) < 0)) {
-            $by[$sci]['first_seen'] = $dt;
+        if ($dt !== '' && ($by[$sci]['first_observed'] === '' || strcmp($dt, $by[$sci]['first_observed']) < 0)) {
+            $by[$sci]['first_observed'] = $dt;
         }
     }
     $list = array_values($by);
     usort($list, function ($a, $b) {
-        return strcmp($b['last_seen'], $a['last_seen']);
+        return strcmp($b['last_observed'], $a['last_observed']);
     });
     return $list;
 }
@@ -307,20 +307,20 @@ switch ($action) {
         $weekAgg = aggregate_species($week);
         $started = null;
         foreach ($allAgg as $s) {
-            if ($started === null || strcmp($s['first_seen'], $started) < 0) {
-                $started = substr($s['first_seen'], 0, 10);
+            if ($started === null || strcmp($s['first_observed'], $started) < 0) {
+                $started = substr($s['first_observed'], 0, 10);
             }
         }
-        $det = function (array $obs): int {
+        $obsCount = function (array $obs): int {
             $n = 0;
             foreach ($obs as $r) $n += isset($r['howMany']) ? max(1, (int)$r['howMany']) : 1;
             return $n;
         };
         echo json_encode([
-            'totals'    => ['detections' => $det($allObs), 'species' => count($allAgg)],
-            'today'     => ['detections' => $det($day), 'species' => count($dayAgg)],
-            'last_hour' => ['detections' => $det($hour)],
-            'week'      => ['detections' => $det($week), 'species' => count($weekAgg)],
+            'totals'    => ['observations' => $obsCount($allObs), 'species' => count($allAgg)],
+            'today'     => ['observations' => $obsCount($day), 'species' => count($dayAgg)],
+            'last_hour' => ['observations' => $obsCount($hour)],
+            'week'      => ['observations' => $obsCount($week), 'species' => count($weekAgg)],
             'started'   => $started,
             'as_of'     => date('c'),
             'source'    => 'ebird',
@@ -355,11 +355,11 @@ switch ($action) {
         usort($mine, function ($a, $b) {
             return strcmp((string)($b['obsDt'] ?? ''), (string)($a['obsDt'] ?? ''));
         });
-        $detections = [];
+        $observations = [];
         foreach (array_slice($mine, 0, 500) as $r) {
             $dt = (string)($r['obsDt'] ?? '');
             $parts = explode(' ', $dt, 2);
-            $detections[] = [
+            $observations[] = [
                 'd' => $parts[0] ?? '',
                 't' => $parts[1] ?? '00:00',
                 'file' => null,
@@ -374,12 +374,12 @@ switch ($action) {
             $summary = [
                 'com' => $summary['com'],
                 'total' => $summary['n'],
-                'first_seen' => $summary['first_seen'],
-                'last_seen' => $summary['last_seen'],
+                'first_observed' => $summary['first_observed'],
+                'last_observed' => $summary['last_observed'],
                 'best_conf' => null,
             ];
         }
-        echo json_encode(['sci' => $sci, 'summary' => $summary, 'detections' => $detections, 'source' => 'ebird']);
+        echo json_encode(['sci' => $sci, 'summary' => $summary, 'observations' => $observations, 'source' => 'ebird']);
         break;
     }
 
@@ -395,8 +395,8 @@ switch ($action) {
             $date = substr($dt, 0, 10);
             $hour = (int)date('G', $ts);
             $n = isset($r['howMany']) ? max(1, (int)$r['howMany']) : 1;
-            if (!isset($byDate[$date])) $byDate[$date] = ['detections' => 0, 'species' => []];
-            $byDate[$date]['detections'] += $n;
+            if (!isset($byDate[$date])) $byDate[$date] = ['observations' => 0, 'species' => []];
+            $byDate[$date]['observations'] += $n;
             $sci = (string)($r['sciName'] ?? '');
             if ($sci !== '') $byDate[$date]['species'][$sci] = true;
             $byHour[$hour] += $n;
@@ -406,13 +406,13 @@ switch ($action) {
         foreach ($byDate as $date => $row) {
             $daily[] = [
                 'date' => $date,
-                'detections' => $row['detections'],
+                'observations' => $row['observations'],
                 'species' => count($row['species']),
             ];
         }
         $by_hour = [];
         foreach ($byHour as $h => $n) {
-            if ($n > 0) $by_hour[] = ['hour' => $h, 'detections' => $n];
+            if ($n > 0) $by_hour[] = ['hour' => $h, 'observations' => $n];
         }
         echo json_encode([
             'days' => $days,
