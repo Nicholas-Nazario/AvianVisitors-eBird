@@ -24,13 +24,18 @@
   collage
 </a>
 <header class="top">
-  <div class="window-pick" id="winPick" role="tablist">
-    <i class="seg-pill" aria-hidden="true"></i>
-    <button data-h="1"   type="button">1H</button>
-    <button data-h="12"  type="button">12H</button>
-    <button data-h="24"  type="button" aria-current="true">24H</button>
-    <button data-h="168" type="button">7D</button>
-    <button data-h="720" type="button">30D</button>
+  <div class="window-controls">
+    <div class="window-pick" id="winPick" role="tablist">
+      <i class="seg-pill" aria-hidden="true"></i>
+      <button data-h="1"   type="button">1H</button>
+      <button data-h="3"   type="button">3H</button>
+      <button data-h="6"   type="button">6H</button>
+      <button data-h="12"  type="button">12H</button>
+      <button data-h="24"  type="button" aria-current="true">24H</button>
+      <button data-h="168" type="button">7D</button>
+      <button data-h="720" type="button">30D</button>
+    </div>
+    <button type="button" class="stats-help window-help" id="windowHelp" aria-label="How time windows work">?</button>
   </div>
   <button class="menu-btn" id="menuBtn">menu</button>
 </header>
@@ -200,6 +205,20 @@
     <div class="about-body">
       <p><strong>Top Species</strong> lists the five species with the highest bird counts in the selected time window.</p>
       <p>The number next to each species is the total number of birds reported. It counts birds, rather than simply counting how many sightings were recorded.</p>
+    </div>
+  </div>
+</div>
+
+<div id="time-window-help-modal" class="stats-info-modal" aria-hidden="true" role="dialog" aria-labelledby="timeWindowHelpTitle">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="about-card" role="document">
+    <button type="button" class="modal-close" data-close="1" aria-label="close">×</button>
+    <p class="about-eyebrow">time windows</p>
+    <h2 id="timeWindowHelpTitle">How the time selector works</h2>
+    <div class="about-body">
+      <p>The eBird recent-observations API accepts its <strong>back</strong> window in whole days. We request the broader day-based set, then use each observation's <strong>obsDt</strong> timestamp to filter it in our API.</p>
+      <p>That lets the 1H, 3H, 6H, and 12H options show sub-day windows even though eBird's request parameter has day granularity.</p>
+      <p><a href="https://documenter.getpostman.com/view/664302/S1ENwy59#62b5ffb3-006e-4e8a-8e50-21d90d036edc" target="_blank" rel="noopener">Learn more about the eBird API →</a></p>
     </div>
   </div>
 </div>

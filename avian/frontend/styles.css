@@ -119,6 +119,7 @@
     padding: 0 28px; z-index: 30; pointer-events: none;
   }
   .top > * { pointer-events: auto; }
+  .window-controls { display: inline-flex; align-items: center; gap: 7px; }
   .top .window-pick {
     display: inline-flex; gap: 0; padding: 4px;
     background: var(--paper-2); border-radius: 999px;
@@ -818,6 +819,7 @@
   .stats-help:hover, .stats-help:focus-visible {
     opacity: 1; color: var(--ink); border-color: var(--ink-soft);
   }
+  .window-help { flex: 0 0 auto; }
   .stats-section-head {
     display: flex; align-items: center; justify-content: space-between;
     gap: 8px;
@@ -1097,7 +1099,7 @@
   body.admin-on .static-head { opacity: 0; pointer-events: none; }
   /* Hide the time-window pill on admin pages (it doesn't apply
      there) - the return-to-atlas link takes its slot. */
-  body.admin-on #winPick { visibility: hidden; }
+  body.admin-on #winPick, body.admin-on #windowHelp { visibility: hidden; }
   .return-to-atlas:hover { color: var(--ink); }
   .return-to-atlas svg { width: 10px; height: 10px; }
   .admin-body { padding-top: 4px; }

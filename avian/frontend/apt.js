@@ -847,9 +847,11 @@
   }
   // Human label for the current time-window picker selection - replaces
   // a bare "window" with the span it actually covers. Thresholds match
-  // the winPick buttons (1H / 12H / 24H / 7D / 30D).
+  // the winPick buttons (1H / 3H / 6H / 12H / 24H / 7D / 30D).
   function windowLabel(h) {
     if (h <= 1) return 'this hour';
+    if (h <= 3) return 'past 3h';
+    if (h <= 6) return 'past 6h';
     if (h <= 12) return 'past 12h';
     if (h <= 24) return 'today';
     if (h <= 168) return 'this week';
@@ -2500,6 +2502,20 @@
         var modal = statsHelpModals[kind];
         if (modal.getAttribute('aria-hidden') === 'false') closeStatsHelp(modal);
       });
+    }
+  });
+  var timeWindowHelpModal = document.getElementById('time-window-help-modal');
+  document.getElementById('windowHelp').addEventListener('click', function () {
+    timeWindowHelpModal.setAttribute('aria-hidden', 'false');
+  });
+  timeWindowHelpModal.addEventListener('click', function (ev) {
+    if (ev.target.dataset && ev.target.dataset.close === '1') {
+      timeWindowHelpModal.setAttribute('aria-hidden', 'true');
+    }
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && timeWindowHelpModal.getAttribute('aria-hidden') === 'false') {
+      timeWindowHelpModal.setAttribute('aria-hidden', 'true');
     }
   });
   document.getElementById('aboutLink').addEventListener('click', function () {
