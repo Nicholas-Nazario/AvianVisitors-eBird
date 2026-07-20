@@ -12,6 +12,7 @@ avian/data/*.db-journal
 avian/data/ebird.json
 avian/data/ebird-cache.json
 avian/data/ebird-cache-*.json
+avian/data/ebird-hotspots-*.json
 
 # Local-only illustration working material
 .claude/

@@ -133,6 +133,9 @@
   applyTheme(readLS('bird:theme', 'light'));
   var winBtns = [].slice.call(winPick.querySelectorAll('button'));
   var currentHours = +readLS('bird:window', '24') || 24;
+  // Older builds used 1,000,000 hours for an unbounded "ALL" option.
+  // Map that persisted value to eBird's 30-day observation limit.
+  if (currentHours >= 1000000) currentHours = 30 * 24;
   winBtns.forEach(function (b) {
     b.setAttribute('aria-current', (+b.dataset.h === currentHours) ? 'true' : 'false');
   });
@@ -844,13 +847,13 @@
   }
   // Human label for the current time-window picker selection - replaces
   // a bare "window" with the span it actually covers. Thresholds match
-  // the winPick buttons (1H / 12H / 24H / 7D / ALL).
+  // the winPick buttons (1H / 12H / 24H / 7D / 30D).
   function windowLabel(h) {
     if (h <= 1) return 'this hour';
     if (h <= 12) return 'past 12h';
     if (h <= 24) return 'today';
     if (h <= 168) return 'this week';
-    return 'all time';
+    return 'past 30d';
   }
 
   // ---- eBird query prefs (menu drawer) ----
@@ -1124,7 +1127,7 @@
       liRow('NOW', 'last hour', fmtN(last_hour))
       + liRow('TODAY', 'today', fmtN(today_det))
       + liRow('WEEK', 'last 7 days', fmtN(week_det))
-      + liRow('ALL', 'all time', fmtN(all_det));
+      + liRow('30D', 'past 30d', fmtN(all_det));
 
     // Top Species - top 5 species in the current window. ./avian/api/birdnet-api.php?action=recent
     // already returns species sorted by last_seen DESC; re-sort by count.
@@ -1188,12 +1191,8 @@
       return;
     }
 
-    // Time-window filter: when a windowed view is selected, only show
-    // species heard in that window. ALL preserves the full lifelist.
-    var isAllWindow = currentHours >= 1000000;
-    var filtered = isAllWindow
-      ? lifelist
-      : lifelist.filter(function (s) { return (winBySci[s.sci] || 0) > 0; });
+    // Only show species heard in the selected, bounded window.
+    var filtered = lifelist.filter(function (s) { return (winBySci[s.sci] || 0) > 0; });
     if (!filtered.length) {
       grid.innerHTML = '<div class="atlas-empty">' +
         '<p>No detections in this window.</p>' +
@@ -1203,11 +1202,13 @@
     }
 
     // Sort by the atlas-sort segmented control (defaults to "count" =
-    // most-heard all time).
+    // most-heard in the selected window).
     var sortMode = (window.__atlasSort) || 'count';
     var species = filtered.slice();
     if (sortMode === 'count') {
-      species.sort(function (a, b) { return (+b.n) - (+a.n); });
+      species.sort(function (a, b) {
+        return (winBySci[b.sci] || 0) - (winBySci[a.sci] || 0);
+      });
     } else if (sortMode === 'recent') {
       species.sort(function (a, b) {
         return (b.last_seen || '').localeCompare(a.last_seen || '');
@@ -1218,27 +1219,19 @@
       });
     }
 
-    // A species is a "lifer" in the current view if its all-time first
-    // detection falls inside the selected window - i.e. it was newly added
-    // to the life list this 1h / 12h / 24h / 7d. Never shown for the ALL
-    // window (every species would qualify against an open-ended span).
+    // A species is a "lifer" in the current view if its first detection
+    // falls inside the selected window.
     var now = Date.now();
     var windowStartMs = now - currentHours * 3600000;
     grid.innerHTML = species.map(function (s) {
-      var total = +s.n || 0;
       var win = winBySci[s.sci] || 0;
       var firstMs = Date.parse((s.first_seen || '').replace(' ', 'T'));
-      var isLifer = !isAllWindow && !isNaN(firstMs) && firstMs >= windowStartMs;
+      var isLifer = !isNaN(firstMs) && firstMs >= windowStartMs;
       var sketchSrc = apiUrl('/avian/api/cutout.php?sci=') + encodeURIComponent(s.sci) +
         (s.com ? '&com=' + encodeURIComponent(s.com) : '') +
         '&v=' + SKETCH_VERSION;
-      // The "all time" window makes the windowed count identical to the
-      // all-time count - collapse to a single stat rather than print the
-      // same number twice. Otherwise label the count with its span.
-      var statRows = currentHours >= 1000000
-        ? '<div><span class="n">' + fmtNK(total) + '</span><span class="lbl-inline">all time</span></div>'
-        : '<div><span class="n">' + fmtNK(win) + '</span><span class="lbl-inline">' + windowLabel(currentHours) + '</span></div>'
-        + '<div><span class="n">' + fmtNK(total) + '</span><span class="lbl-inline">all time</span></div>';
+      // Show only the count for the selected, bounded observation window.
+      var statRows = '<div><span class="n">' + fmtNK(win) + '</span><span class="lbl-inline">' + windowLabel(currentHours) + '</span></div>';
       return ''
         + '<article class="bird-card" data-sci="' + s.sci + '">'
         + (isLifer ? '<span class="lifer-badge" title="new to the life list in this window">lifer</span>' : '')
@@ -1939,17 +1932,8 @@
     document.getElementById('modalSci').textContent = sci;
     document.getElementById('modalGenus').textContent = (sci.split(' ')[0] || '-');
     document.getElementById('modalCommon').textContent = '-';
-    document.getElementById('modalAllTime').textContent = '-';
     document.getElementById('modalWindow').textContent = '-';
-    // Window stat label tracks the picker; the whole stat is hidden for
-    // the "all time" window since it would just echo the all-time count.
-    var modalWinStat = document.getElementById('modalWindowStat');
-    if (currentHours >= 1000000) {
-      modalWinStat.style.display = 'none';
-    } else {
-      modalWinStat.style.display = '';
-      document.getElementById('modalWindowLbl').textContent = windowLabel(currentHours);
-    }
+    document.getElementById('modalWindowLbl').textContent = windowLabel(currentHours);
     document.getElementById('modalFirstSeen').textContent = '-';
     document.getElementById('modalRarity').textContent = '-';
     document.getElementById('modalRarity').classList.remove('rare');
@@ -1981,7 +1965,6 @@
     loadSpecies.then(function (j) {
       var s = j.summary || {};
       document.getElementById('modalCommon').textContent = s.com || sci;
-      document.getElementById('modalAllTime').textContent = (+s.total || 0).toLocaleString();
       var winRow = ((DATA.recent && DATA.recent.species) || []).filter(function (x) { return x.sci === sci; })[0];
       document.getElementById('modalWindow').textContent = (winRow ? +winRow.n : 0).toLocaleString();
       document.getElementById('modalFirstSeen').textContent = s.first_seen || '-';
