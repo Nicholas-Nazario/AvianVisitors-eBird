@@ -1506,7 +1506,7 @@
     color: var(--ink-2); margin: 5px 0 18px;
   }
   .modal-stats {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    display: grid; grid-template-columns: 1fr 2fr; gap: 8px;
     margin-bottom: 18px;
   }
   .modal-stats > div {
@@ -1518,6 +1518,12 @@
     display: block;
     font: 800 17px/1 ui-serif, Georgia, serif;
     color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+  .modal-stats .last-observed-time {
+    display: block;
+    margin-top: 4px;
+    font: 500 12px/1.15 ui-serif, Georgia, serif;
+    font-variant-numeric: tabular-nums;
   }
   .modal-stats .lbl {
     display: block; margin-top: 4px;

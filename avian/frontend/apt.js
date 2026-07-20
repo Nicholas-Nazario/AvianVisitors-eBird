@@ -1937,6 +1937,29 @@
     if (perDay >= 0.2) return 'occasional';
     return 'rare';
   }
+  function relativeObservationTime(obsDt, now) {
+    var timestamp = Date.parse((obsDt || '').replace(' ', 'T'));
+    if (isNaN(timestamp)) return '-';
+    var minutes = Math.max(0, Math.floor(((now || Date.now()) - timestamp) / 60000));
+    if (minutes < 60) {
+      return minutes + ' min ago';
+    }
+    var hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+      var remainingMinutes = minutes % 60;
+      var hourLabel = hours + ' hour' + (hours === 1 ? '' : 's');
+      if (!remainingMinutes) return hourLabel + ' ago';
+      return hourLabel + ' and ' + remainingMinutes + ' min ago';
+    }
+    var days = Math.floor(hours / 24);
+    return days === 1 ? 'yesterday' : days + ' days ago';
+  }
+  function lastObservedParts(summary, now) {
+    return {
+      location: (summary && summary.last_locName) || '-',
+      time: relativeObservationTime(summary && summary.last_observed, now),
+    };
+  }
   function sketchSrc(sci, pose) {
     // Look up the common name from the current window data so the worker's JIT
     // Gemini prompt is right for a never-pre-rendered species.
@@ -2011,8 +2034,9 @@
     document.getElementById('modalGenus').textContent = (sci.split(' ')[0] || '-');
     document.getElementById('modalCommon').textContent = '-';
     document.getElementById('modalWindow').textContent = '-';
-    document.getElementById('modalWindowLbl').textContent = windowLabel(currentHours);
-    document.getElementById('modalFirstObserved').textContent = '-';
+    document.getElementById('modalWindowLbl').textContent = 'observed ' + windowLabel(currentHours);
+    document.getElementById('modalLastLocation').textContent = '-';
+    document.getElementById('modalLastTime').textContent = '-';
     document.getElementById('modalRarity').textContent = '-';
     document.getElementById('modalRarity').classList.remove('rare');
     document.getElementById('modalDesc').textContent = 'Loading description...';
@@ -2045,7 +2069,9 @@
       document.getElementById('modalCommon').textContent = s.com || sci;
       var winRow = ((DATA.recent && DATA.recent.species) || []).filter(function (x) { return x.sci === sci; })[0];
       document.getElementById('modalWindow').textContent = (winRow ? +winRow.n : 0).toLocaleString();
-      document.getElementById('modalFirstObserved').textContent = s.first_observed || '-';
+      var lastObserved = lastObservedParts(s);
+      document.getElementById('modalLastLocation').textContent = lastObserved.location;
+      document.getElementById('modalLastTime').textContent = lastObserved.time;
       var rar = rarityLabel(+s.total || 0, s.first_observed);
       var rarEl = document.getElementById('modalRarity');
       rarEl.textContent = rar;

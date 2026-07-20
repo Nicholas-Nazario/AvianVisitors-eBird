@@ -262,6 +262,7 @@ function aggregate_species(array $obs): array {
                 'speciesCode' => trim((string)($row['speciesCode'] ?? '')),
                 'n' => 0,
                 'last_observed' => $dt,
+                'last_locName' => $row['locName'] ?? null,
                 'first_observed' => $dt,
                 'best_conf' => null,
                 'top_file' => null,
@@ -273,6 +274,7 @@ function aggregate_species(array $obs): array {
         if ($com !== '') $by[$sci]['com'] = $com;
         if ($dt !== '' && ($by[$sci]['last_observed'] === '' || strcmp($dt, $by[$sci]['last_observed']) > 0)) {
             $by[$sci]['last_observed'] = $dt;
+            $by[$sci]['last_locName'] = $row['locName'] ?? null;
             $by[$sci]['top_at'] = $dt;
         }
         if ($dt !== '' && ($by[$sci]['first_observed'] === '' || strcmp($dt, $by[$sci]['first_observed']) < 0)) {
@@ -376,6 +378,7 @@ switch ($action) {
                 'total' => $summary['n'],
                 'first_observed' => $summary['first_observed'],
                 'last_observed' => $summary['last_observed'],
+                'last_locName' => $summary['last_locName'],
                 'best_conf' => null,
             ];
         }
