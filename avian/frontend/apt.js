@@ -139,10 +139,16 @@
   }
   applyTheme(readLS('bird:theme', 'light'));
   var winBtns = [].slice.call(winPick.querySelectorAll('button'));
-  var currentHours = +readLS('bird:window', '24') || 24;
+  var DEFAULT_WINDOW_HOURS = 24;
+  var currentHours = +readLS('bird:window', String(DEFAULT_WINDOW_HOURS)) || DEFAULT_WINDOW_HOURS;
   // Older builds used 1,000,000 hours for an unbounded "ALL" option.
   // Map that persisted value to eBird's 30-day observation limit.
   if (currentHours >= 1000000) currentHours = 30 * 24;
+  // If a stale or unsupported value was persisted, start on the documented
+  // default instead of leaving the picker with no active option.
+  if (!winBtns.some(function (b) { return +b.dataset.h === currentHours; })) {
+    currentHours = DEFAULT_WINDOW_HOURS;
+  }
   winBtns.forEach(function (b) {
     b.setAttribute('aria-current', (+b.dataset.h === currentHours) ? 'true' : 'false');
   });
