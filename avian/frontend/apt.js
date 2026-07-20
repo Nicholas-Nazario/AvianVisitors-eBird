@@ -1148,6 +1148,45 @@
     return code ? 'https://ebird.org/species/' + code : 'https://ebird.org/explore';
   }
 
+  // Keep a missing cutout intentional and species-agnostic. The card still
+  // carries the bird's identity below; this only fills the artwork slot.
+  function createMissingArtwork() {
+    var fallback = document.createElement('div');
+    fallback.className = 'missing-artwork';
+    fallback.setAttribute('role', 'img');
+    fallback.setAttribute('aria-label', 'No artwork... yet');
+    fallback.innerHTML = '<svg viewBox="0 0 120 148" aria-hidden="true" focusable="false">' +
+      '<path class="feather-wash" d="M25 128C37 102 51 75 67 51 79 33 92 19 105 10 101 31 95 49 84 66 70 87 49 108 25 128Z" />' +
+      '<path class="feather-edge feather-edge-top" d="M105 10C95 11 85 15 76 22M71 25C58 33 47 42 39 53" />' +
+      '<path class="feather-edge" d="M105 10C93 18 82 30 71 46M68 51C57 66 45 83 34 99M32 105C28 114 26 122 25 128" />' +
+      '<path class="feather-edge feather-edge-right" d="M105 10C103 28 98 46 88 63M85 68C73 87 55 106 25 128" />' +
+      '<path class="feather-shaft" d="M10 145C35 102 52 74 67 51 80 31 93 18 105 10" />' +
+      '<path class="feather-barb" d="M96 18C84 20 75 23 66 28M89 29C77 32 67 36 57 41M82 40C69 44 58 49 48 55M75 52C62 57 51 63 40 70M68 65C55 70 44 77 34 85M60 79C48 85 38 92 29 101M51 94C42 99 34 106 26 114" />' +
+      '<path class="feather-barb feather-barb-light" d="M101 23C98 34 94 44 89 53M94 39C88 52 81 62 73 72M87 55C79 69 70 80 60 91M78 73C68 87 57 98 46 109M67 92C57 105 47 115 37 123" />' +
+      '<path class="feather-tip" d="M10 145 25 128 31 137" />' +
+      '</svg><span>No artwork... yet</span>';
+    return fallback;
+  }
+  function atlasArtworkFallback(img) {
+    if (!img || !img.parentNode || img.dataset.fallback) return;
+    img.dataset.fallback = 'true';
+    var fallback = createMissingArtwork();
+    img.parentNode.replaceChild(fallback, img);
+  }
+  function modalArtworkFallback(img) {
+    var holder = img && img.parentNode;
+    if (!holder || holder.querySelector('.missing-artwork')) return;
+    img.style.display = 'none';
+    holder.appendChild(createMissingArtwork());
+  }
+  function clearModalArtworkFallback(img) {
+    var holder = img && img.parentNode;
+    if (!holder) return;
+    var fallback = holder.querySelector('.missing-artwork');
+    if (fallback) fallback.remove();
+    img.style.display = '';
+  }
+
   // Tiny inline icons - monochrome, ink-only, match the page palette.
   function renderAtlas(animate) {
     var grid = document.getElementById('atlasGrid');
@@ -1201,6 +1240,10 @@
         + '</div>'
         + '</article>';
     }).join('');
+
+    grid.querySelectorAll('.bird-card .img-wrap img').forEach(function (img) {
+      img.addEventListener('error', function () { atlasArtworkFallback(img); }, { once: true });
+    });
 
     if (animate) playAtlasEntrance();
   }
@@ -1927,6 +1970,9 @@
       p1.removeAttribute('data-unavailable');
       p1.setAttribute('aria-current', 'true');
     }
+    clearModalArtworkFallback(img);
+    img.onerror = function () { modalArtworkFallback(img); };
+    img.onload = function () { clearModalArtworkFallback(img); };
     img.src = sketchSrc(sci, 1);
     img.alt = sci;
 

@@ -1010,6 +1010,59 @@
     max-width: 100%; max-height: 160px; display: block;
     filter: drop-shadow(0 2px 6px rgba(26,22,18,0.10));
   }
+  .missing-artwork {
+    position: relative;
+    width: min(170px, 78%); aspect-ratio: 5 / 6;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 12px 10px; box-sizing: border-box;
+    color: var(--ink-soft); background: var(--paper-2);
+    border: 1px dashed rgba(26,22,18,0.22); border-radius: 4px;
+    text-align: center;
+    font: 9.5px/1.2 ui-monospace, Menlo, monospace;
+    letter-spacing: 0.08em; text-transform: lowercase;
+  }
+  .missing-artwork::before,
+  .missing-artwork::after {
+    content: ''; position: absolute; width: 5px; height: 5px;
+    border-color: rgba(26,22,18,0.28); border-style: solid;
+  }
+  .missing-artwork::before {
+    margin: -12px 0 0 -10px; border-width: 1px 0 0 1px;
+  }
+  .missing-artwork::after {
+    margin: 0 0 -12px 10px; border-width: 0 1px 1px 0;
+  }
+  .missing-artwork svg {
+    width: 72px; height: 84px; overflow: visible;
+  }
+  .missing-artwork path {
+    fill: none; stroke: currentColor; stroke-width: 1.8;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .missing-artwork .feather-wash {
+    fill: currentColor; stroke: none; opacity: 0.10;
+  }
+  .missing-artwork .feather-shaft {
+    stroke-width: 3; opacity: 0.86;
+  }
+  .missing-artwork .feather-edge {
+    stroke-width: 1.7; opacity: 0.68;
+  }
+  .missing-artwork .feather-edge-top {
+    stroke-width: 1.5; opacity: 0.52;
+  }
+  .missing-artwork .feather-edge-right {
+    stroke-width: 1.45; opacity: 0.52;
+  }
+  .missing-artwork .feather-barb {
+    stroke-width: 2.35; opacity: 0.72;
+  }
+  .missing-artwork .feather-barb-light {
+    stroke-width: 1.9; opacity: 0.46;
+  }
+  .missing-artwork .feather-tip {
+    stroke-width: 2.5; opacity: 0.72;
+  }
   .bird-card h3 {
     margin: 0;
     font: 700 14.5px/1.15 ui-serif, "Iowan Old Style", Georgia, serif;
