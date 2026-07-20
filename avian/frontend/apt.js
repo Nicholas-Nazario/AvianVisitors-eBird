@@ -253,10 +253,10 @@
       // breathing room (and more headroom for packing efficiency).
       // Steps down as species count grows so a busy plate doesn't
       // try to claim the entire viewport.
-      packingBudgetFrac: n <= 4 ? 0.46 :
-        n <= 12 ? 0.40 :
-          n <= 24 ? 0.34 :
-            0.28,
+      packingBudgetFrac: n <= 4 ? 0.72 :
+        n <= 12 ? 0.66 :
+          n <= 24 ? 0.58 :
+            0.50,
       // Count -> area exponent. ~0.65 keeps the visual hierarchy
       // legible (n=400 reads ~5× bigger than n=30) without the
       // loudest bird drowning everything else.
