@@ -1,0 +1,13 @@
+.git
+.github
+.agents
+.codex
+.local-serve
+node_modules
+__pycache__
+*.pyc
+
+# Runtime configuration and cache should be created by the container.
+avian/data/ebird.json
+avian/data/*cache*.json
+avian/data/ebird-hotspots-*.json

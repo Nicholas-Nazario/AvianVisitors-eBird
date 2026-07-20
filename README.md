@@ -49,6 +49,57 @@ The collage frontend polls these about every 30s (and when you change the time w
 | **`stats`** | Totals / today / last hour / week | “By Period” summary numbers. |
 | **`lifelist`** | Every species in the pulled eBird set, with all-time-ish counts | Atlas cards and all-time counts in the detail modal. |
 
+## Fly.io backend + GitHub Pages frontend
+
+The repository includes a `Dockerfile` and `fly.toml`. The Fly app runs the
+PHP API, while GitHub Pages serves the static frontend.
+
+### Deploy the backend to Fly.io
+
+Install and authenticate [`flyctl`](https://fly.io/docs/flyctl/install/), then
+run these commands from the repository root:
+
+```bash
+fly launch --no-deploy
+fly secrets set EBIRD_API_KEY=your_ebird_api_key
+fly deploy
+```
+
+If the app already exists, `fly deploy` is sufficient. The Docker image
+serves the PHP API on port 80. `EBIRD_API_KEY` is stored as a Fly secret, so
+it must not be committed to `avian/data/ebird.json`.
+
+After deployment, note the backend URL, such as:
+
+```text
+https://avianvisitors-ebird.fly.dev
+```
+
+### Deploy the frontend to GitHub Pages
+
+Before publishing the frontend, edit `avian/frontend/config.js` and set
+`window.AV_API_BASE` to the Fly backend URL:
+
+```js
+window.AV_API_BASE = 'https://avianvisitors-ebird.fly.dev';
+```
+
+Publish the contents of `avian/frontend/` as the GitHub Pages site. If using
+GitHub Actions, configure the workflow to upload that directory as the Pages
+artifact. If using the repository Pages branch, copy the contents of
+`avian/frontend/` into the published directory.
+
+The API allows cross-origin requests by default. To restrict access to the
+GitHub Pages site, set the exact Pages origin as a Fly secret and redeploy:
+
+```bash
+fly secrets set AV_CORS_ORIGIN=https://your-user.github.io
+```
+
+For a project Pages site, include the repository path in the origin only when
+configuring frontend URLs; the origin itself remains the scheme and hostname,
+for example `https://your-user.github.io`.
+
 ## License
 
 CC-BY-NC-SA-4.0 (inherited from BirdNET-Pi / Cornell attribution).

@@ -1,4 +1,9 @@
 (function () {
+  // Set window.AV_API_BASE in config.js when this frontend is hosted on a
+  // different origin, for example https://avianvisitors-ebird.fly.dev.
+  var API_BASE = (window.AV_API_BASE || '').replace(/\/+$/, '');
+  function apiUrl(path) { return API_BASE + path; }
+
   var PLACEHOLDER = [{ "sci": "Calypte anna", "com": "Anna's Hummingbird", "featured": true }, { "sci": "Passer domesticus", "com": "House Sparrow" }, { "sci": "Haemorhous mexicanus", "com": "House Finch" }, { "sci": "Turdus migratorius", "com": "American Robin" }, { "sci": "Zenaida macroura", "com": "Mourning Dove" }, { "sci": "Spinus psaltria", "com": "Lesser Goldfinch" }, { "sci": "Zonotrichia leucophrys", "com": "White-crowned Sparrow" }, { "sci": "Aphelocoma californica", "com": "California Scrub-Jay" }, { "sci": "Mimus polyglottos", "com": "Northern Mockingbird" }, { "sci": "Sayornis nigricans", "com": "Black Phoebe" }, { "sci": "Larus occidentalis", "com": "Western Gull" }, { "sci": "Corvus brachyrhynchos", "com": "American Crow" }];
   // Bumped whenever the offline sketch build changes, so the browser
   // doesn't keep a stale cache after we regenerate the sketches.
@@ -565,7 +570,7 @@
       // com flows through so the worker's JIT Gemini job uses the right
       // common name in its prompt for a freshly-detected species.
       // &v=IMG_VERSION busts CF edge cache when we re-render any species.
-      var img = './avian/api/cutout.php?sci=' + encodeURIComponent(s.sci) +
+      var img = apiUrl('/avian/api/cutout.php?sci=') + encodeURIComponent(s.sci) +
         (s.com ? '&com=' + encodeURIComponent(s.com) : '') +
         (r.pose === 2 ? '&pose=2' : '') +
         '&v=' + IMG_VERSION;
@@ -896,7 +901,7 @@
   var forceRefreshOnce = false;
 
   function birdApi(qs) {
-    var url = './avian/api/birdnet-api.php?' + qs
+    var url = apiUrl('/avian/api/birdnet-api.php?') + qs
       + '&lat=' + encodeURIComponent(GEO.lat)
       + '&lng=' + encodeURIComponent(GEO.lng)
       + '&dist=' + encodeURIComponent(GEO.dist)
@@ -1224,7 +1229,7 @@
       var win = winBySci[s.sci] || 0;
       var firstMs = Date.parse((s.first_seen || '').replace(' ', 'T'));
       var isLifer = !isAllWindow && !isNaN(firstMs) && firstMs >= windowStartMs;
-      var sketchSrc = './avian/api/cutout.php?sci=' + encodeURIComponent(s.sci) +
+      var sketchSrc = apiUrl('/avian/api/cutout.php?sci=') + encodeURIComponent(s.sci) +
         (s.com ? '&com=' + encodeURIComponent(s.com) : '') +
         '&v=' + SKETCH_VERSION;
       // The "all time" window makes the windowed count identical to the
@@ -1370,7 +1375,7 @@
   // request reaches PHP - so a 200 here means we're authed, a 401
   // means Caddy rejected and we need the lock-screen flow.
   function tryAutoUnlock() {
-    fetch('./avian/api/menu.php', { credentials: 'same-origin' }).then(function (r) {
+    fetch(apiUrl('/avian/api/menu.php'), { credentials: 'same-origin' }).then(function (r) {
       if (r.status === 200) {
         return r.json().then(function (j) { renderMenu(j.items || []); });
       }
@@ -1389,7 +1394,7 @@
     // POST to menu.php with the header so the browser caches the basic
     // creds for every subsequent request. If Caddy basic_auth accepts
     // them we get a 200 and the drawer renders; 401 means wrong password.
-    fetch('./avian/api/menu.php', {
+    fetch(apiUrl('/avian/api/menu.php'), {
       method: 'POST',
       headers: { 'Authorization': hdr },
       credentials: 'same-origin',
@@ -1680,7 +1685,7 @@
   }
 
   function loadSettings() {
-    fetch('./avian/api/config.php', { credentials: 'same-origin', cache: 'no-store' })
+    fetch(apiUrl('/avian/api/config.php'), { credentials: 'same-origin', cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (cfg) {
         var v = cfg.values || {};
@@ -1796,7 +1801,7 @@
     if (Object.keys(pending).length === 0) return;
     var body = JSON.stringify(pending);
     setSaveState('saving...');
-    fetch('./avian/api/config.php', {
+    fetch(apiUrl('/avian/api/config.php'), {
       method: 'POST', body: body,
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
@@ -1870,7 +1875,7 @@
     var sp = ((DATA.lifelist && DATA.lifelist.species) || [])
       .find(function (s) { return s.sci === sci; });
     var com = sp ? (sp.com || '') : '';
-    var base = './avian/api/cutout.php?sci=' + encodeURIComponent(sci) +
+    var base = apiUrl('/avian/api/cutout.php?sci=') + encodeURIComponent(sci) +
       (com ? '&com=' + encodeURIComponent(com) : '') +
       '&v=' + SKETCH_VERSION;
     var n = +pose || 1;
@@ -1989,7 +1994,7 @@
     // Wikipedia summary (description + genus / family).
     var loadWiki = WIKI_CACHE[sci]
       ? Promise.resolve(WIKI_CACHE[sci])
-      : fetchJson('./avian/api/wiki.php?sci=' + encodeURIComponent(sci)).then(function (j) {
+      : fetchJson(apiUrl('/avian/api/wiki.php?sci=') + encodeURIComponent(sci)).then(function (j) {
         WIKI_CACHE[sci] = j; return j;
       });
     loadWiki.then(function (j) {
@@ -2219,7 +2224,7 @@
 
   function renderAdminSettings() {
     adminBody.innerHTML = '<p style="font:11px ui-monospace,monospace;color:var(--ink-soft);text-align:center">loading settings...</p>';
-    fetch('./avian/api/config.php', { credentials: 'same-origin', cache: 'no-store' })
+    fetch(apiUrl('/avian/api/config.php'), { credentials: 'same-origin', cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (cfg) {
         var v = cfg.values || {};
@@ -2264,7 +2269,7 @@
   function renderAdminSystem() {
     adminBody.innerHTML = '<p style="font:11px ui-monospace,monospace;color:var(--ink-soft);text-align:center">loading...</p>';
     function tick() {
-      adminApi('./avian/api/birdnet-status.php?action=diag')
+      adminApi(apiUrl('/avian/api/birdnet-status.php?action=diag'))
         .then(function (r) { return r.text().then(function (raw) { return { status: r.status, raw: raw }; }); })
         .then(function (res) {
           var j = null;
@@ -2363,7 +2368,7 @@
         var unit = b.dataset.unit;
         if (!confirm('Restart ' + unit + '?')) return;
         b.disabled = true; var old = b.textContent; b.textContent = '...';
-        fetch('./avian/api/birdnet-status.php?action=restart&unit=' + encodeURIComponent(unit), {
+        fetch(apiUrl('/avian/api/birdnet-status.php?action=restart&unit=') + encodeURIComponent(unit), {
           method: 'POST', credentials: 'same-origin',
         })
           .then(function (r) { return r.json(); })
@@ -2400,7 +2405,7 @@
       autoScroll = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 20;
     });
     function tick() {
-      adminApi('./avian/api/birdnet-status.php?action=logs&unit=' + encodeURIComponent(unit) + '&lines=' + lines)
+      adminApi(apiUrl('/avian/api/birdnet-status.php?action=logs&unit=') + encodeURIComponent(unit) + '&lines=' + lines)
         .then(function (r) { return r.text().then(function (raw) { return { status: r.status, raw: raw }; }); })
         .then(function (res) {
           var j = null;
@@ -2467,7 +2472,7 @@
         if (!confirm('restart ' + unit + '?')) return;
         b.disabled = true; var old = b.textContent; b.textContent = '...';
         var out = adminBody.querySelector('.out[data-out="' + unit.replace(/[^a-z0-9_.-]/gi, '_') + '"]');
-        fetch('./avian/api/birdnet-status.php?action=restart&unit=' + encodeURIComponent(unit), {
+        fetch(apiUrl('/avian/api/birdnet-status.php?action=restart&unit=') + encodeURIComponent(unit), {
           method: 'POST', credentials: 'same-origin',
         })
           .then(function (r) { return r.json(); })
@@ -2755,7 +2760,7 @@
     }
     var ctx = getSpecCtx();
     if (!ctx) { fail('WebAudio not available'); return; }
-    fetch('./avian/api/recording.php?file=' + encodeURIComponent(file))
+    fetch(apiUrl('/avian/api/recording.php?file=') + encodeURIComponent(file))
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.arrayBuffer();
@@ -2820,7 +2825,7 @@
       prow.classList.add('expanded');
       ensureSpectroImage(prow);
       var strip = prow.querySelector('.rec-spectro');
-      var audio = new Audio('./avian/api/recording.php?file=' + encodeURIComponent(pfile));
+      var audio = new Audio(apiUrl('/avian/api/recording.php?file=') + encodeURIComponent(pfile));
       modalAudio = audio;
       audio.addEventListener('loadedmetadata', function () {
         strip.classList.add('armed');

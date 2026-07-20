@@ -14,6 +14,7 @@
 // /avian/api/* with basic_auth in your Caddyfile - see avian/forwarding/.
 
 declare(strict_types=1);
+require_once __DIR__ . '/bootstrap.php';
 
 $sci = trim((string)($_GET['sci'] ?? ''));
 if ($sci === '') {
