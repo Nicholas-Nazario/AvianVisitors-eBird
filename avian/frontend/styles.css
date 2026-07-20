@@ -682,10 +682,10 @@
   .stats-timeline {
     position: relative;
     flex: 1 1 auto; min-height: 0;
-    padding: 0 0 28px 32px;   /* left = y-axis (quantity), bottom = timestamps */
+    padding: 0 0 58px 32px;   /* left = y-axis; bottom = ticks + title */
   }
   .stats-tl-yaxis {
-    position: absolute; left: 0; top: 0; bottom: 28px; width: 28px;
+    position: absolute; left: 0; top: 0; bottom: 58px; width: 28px;
     border-right: 1px solid var(--hairline);
   }
   .stats-tl-ytick {
@@ -788,10 +788,57 @@
      falls back to the most-heard subset. A paper background keeps it
      legible even if a tall label reaches the corner behind it. */
   .stats-tl-cap {
-    position: absolute; top: 0; right: 0; z-index: 2;
-    background: var(--paper); padding: 1px 0 3px 8px;
-    font: 8.5px/1 "SF Mono", Menlo, monospace; color: var(--ink-soft);
-    letter-spacing: 0.04em;
+    display: none;
+  }
+  .stats-tl-footer {
+    position: absolute; left: 32px; right: 0; bottom: 0;
+    text-align: center;
+  }
+  .stats-tl-footer-title {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  .stats-tl-footer strong {
+    display: block;
+    font: 700 11px/1.2 ui-monospace, Menlo, monospace;
+    color: var(--ink); letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .stats-tl-footer small {
+    display: block; margin-top: 4px;
+    font: 9px/1.2 ui-monospace, Menlo, monospace;
+    color: var(--ink-soft); letter-spacing: 0.04em;
+  }
+  .stats-help {
+    width: 19px; height: 19px; padding: 0;
+    border: 1px solid var(--hairline); border-radius: 50%;
+    background: transparent; color: var(--ink-soft); opacity: 0.62;
+    font: 11px/17px ui-monospace, Menlo, monospace;
+    text-align: center; cursor: pointer;
+    transition: opacity 140ms ease, color 140ms ease, border-color 140ms ease;
+  }
+  .stats-help:hover, .stats-help:focus-visible {
+    opacity: 1; color: var(--ink); border-color: var(--ink-soft);
+  }
+  .stats-section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+  }
+  .stats-section-head .stats-help { flex: 0 0 auto; }
+
+  .stats-info-modal {
+    position: fixed; inset: 0; z-index: 60;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; pointer-events: none; opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  .stats-info-modal[aria-hidden="false"] { pointer-events: auto; opacity: 1; }
+  .stats-info-modal[aria-hidden="false"] .about-card { transform: none; }
+  .stats-info-modal .about-card { transform: translateY(10px) scale(0.985); }
+  .stats-info-modal .about-body p + p { margin-top: 13px; }
+  .stats-info-modal .about-body strong { color: var(--ink); }
+
+  /* Keep the explanatory popup readable on narrow screens. */
+  @media (max-width: 700px) {
+    .stats-info-modal { padding: 16px; }
   }
 
   /* (Old chart-card / .stats-charts CSS removed - replaced by the

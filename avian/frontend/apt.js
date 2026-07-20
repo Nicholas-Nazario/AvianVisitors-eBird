@@ -921,7 +921,6 @@
   // load and by refreshRecent() when the window picker changes.
   var STATS_DAYS = 30;
   var DATA = {
-    stats: null,        // birdApi('action=stats')
     timeseries: null,   // birdApi('action=timeseries&days=30')
     recent: null,       // birdApi('action=recent&hours=N')
   };
@@ -978,7 +977,10 @@
     if (!tl) return;
     var all = ((DATA.recent && DATA.recent.species) || []).slice();
     if (!all.length) {
-      tl.innerHTML = '<div class="stats-tl-empty">no detections in this window</div>';
+      tl.innerHTML = '<div class="stats-tl-empty">no detections in this window</div>'
+        + '<div class="stats-tl-footer"><div class="stats-tl-footer-title"><strong>Species spotted</strong>'
+        + '<button type="button" class="stats-help" data-stats-help="graph" aria-label="How the graph works">?</button></div>'
+        + '<small>no detections in this window</small></div>';
       return;
     }
 
@@ -1063,15 +1065,15 @@
       if (lab) xaxis += '<span class="stats-tl-xtick" style="left:' + centerPct.toFixed(3) + '%">' + lab + '</span>';
     });
 
-    var note = trimmed
-      ? '<div class="stats-tl-cap">' + C + ' most-heard of ' + all.length + '</div>'
-      : '';
+    var note = trimmed ? C + ' most spotted of ' + all.length : 'all species in this window';
     tl.innerHTML =
       '<div class="stats-tl-yaxis">' + yaxis + '</div>'
       + '<div class="stats-tl-plot"' + (isMobile ? ' style="width:' + Math.round(plotW) + 'px"' : '') + '>'
       + gridlines + cols + xaxis
       + '</div>'
-      + note;
+      + '<div class="stats-tl-footer"><div class="stats-tl-footer-title"><strong>Species spotted</strong>'
+      + '<button type="button" class="stats-help" data-stats-help="graph" aria-label="How the graph works">?</button></div>'
+      + '<small>' + note + '</small></div>';
     if (animate) playStatsEntrance();
   }
 
@@ -1105,20 +1107,7 @@
 
   // ---- Side text lists (real Pi data) ----
   function renderStatsLists() {
-    var stats = DATA.stats || {};
     var recent = DATA.recent || { species: [] };
-
-    // By Period - pulled directly from ./avian/api/birdnet-api.php?action=stats so the numbers
-    // are authoritative (BirdNET-Pi's own counts).
-    var last_hour = (stats.last_hour && stats.last_hour.detections) || 0;
-    var today_det = (stats.today && stats.today.detections) || 0;
-    var week_det = (stats.week && stats.week.detections) || 0;
-    var all_det = (stats.totals && stats.totals.detections) || 0;
-    document.getElementById('statsByPeriod').innerHTML =
-      liRow('NOW', 'last hour', fmtN(last_hour))
-      + liRow('TODAY', 'today', fmtN(today_det))
-      + liRow('WEEK', 'last 7 days', fmtN(week_det))
-      + liRow('30D', 'past 30d', fmtN(all_det));
 
     // Top Species - top 5 species in the current window. ./avian/api/birdnet-api.php?action=recent
     // already returns species sorted by last_seen DESC; re-sort by count.
@@ -1130,7 +1119,7 @@
       ? ranked.map(function (s, i) { return liRow(pad(i + 1), s.com, fmtN(+s.n), s.sci); }).join('')
       : liRow('-', 'no detections in window', '');
     document.getElementById('statsTopSpecCap').textContent =
-      'most-heard, ' + windowLabel(currentHours);
+      'most-spotted, ' + windowLabel(currentHours);
 
   }
 
@@ -1238,16 +1227,14 @@
     var forHours = currentHours;
     if (force) forceRefreshOnce = true;
     return Promise.all([
-      fetchJson(birdApi('action=stats')).catch(function () { return null; }),
       fetchJson(birdApi('action=timeseries&days=30')).catch(function () { return null; }),
       fetchJson(birdApi('action=recent&hours=' + forHours)).catch(function () { return null; }),
     ]).then(function (parts) {
       forceRefreshOnce = false;
-      DATA.stats = parts[0];
-      DATA.timeseries = parts[1];
+      DATA.timeseries = parts[0];
       // Only accept the recent slice if the window hasn't changed
       // since this poll started - otherwise keep what's there.
-      if (forHours === currentHours && parts[2]) DATA.recent = parts[2];
+      if (forHours === currentHours && parts[1]) DATA.recent = parts[1];
       recomputeDerived();
       renderTimeIndependent(animate);
       renderCollageFromData(animate);
@@ -2485,6 +2472,34 @@
     if (ev.key === 'Escape' &&
       document.getElementById('about-modal').getAttribute('aria-hidden') === 'false') {
       if (location.hash) { location.hash = ''; } else { closeAbout(); }
+    }
+  });
+
+  // Stats help popup. The graph is re-rendered as data refreshes, so its
+  // help button is handled by delegation from the stable stats view.
+  var statsHelpModals = {
+    graph: document.getElementById('stats-graph-help-modal'),
+    table: document.getElementById('stats-table-help-modal')
+  };
+  function openStatsHelp(kind) {
+    if (statsHelpModals[kind]) statsHelpModals[kind].setAttribute('aria-hidden', 'false');
+  }
+  function closeStatsHelp(modal) { modal.setAttribute('aria-hidden', 'true'); }
+  document.getElementById('v1').addEventListener('click', function (ev) {
+    var help = ev.target.closest && ev.target.closest('[data-stats-help]');
+    if (help) openStatsHelp(help.getAttribute('data-stats-help'));
+  });
+  Object.keys(statsHelpModals).forEach(function (kind) {
+    statsHelpModals[kind].addEventListener('click', function (ev) {
+      if (ev.target.dataset && ev.target.dataset.close === '1') closeStatsHelp(statsHelpModals[kind]);
+    });
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') {
+      Object.keys(statsHelpModals).forEach(function (kind) {
+        var modal = statsHelpModals[kind];
+        if (modal.getAttribute('aria-hidden') === 'false') closeStatsHelp(modal);
+      });
     }
   });
   document.getElementById('aboutLink').addEventListener('click', function () {

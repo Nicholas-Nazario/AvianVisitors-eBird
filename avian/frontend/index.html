@@ -72,13 +72,11 @@
         </div>
         <aside class="stats-side">
           <div class="grp">
-            <h3>By Period</h3>
-            <small>detections, grouped by recency</small>
-            <ol id="statsByPeriod"></ol>
-          </div>
-          <div class="grp">
-            <h3>Top Species</h3>
-            <small id="statsTopSpecCap">most-heard, current window</small>
+            <div class="stats-section-head">
+              <h3>Top Species</h3>
+              <button type="button" class="stats-help" data-stats-help="table" aria-label="How Top Species works">?</button>
+            </div>
+            <small id="statsTopSpecCap">most-spotted, current window</small>
             <ol id="statsTopSpec"></ol>
           </div>
         </aside>
@@ -178,6 +176,32 @@
     <p class="about-body">A tiny microphone identifies every passing bird with Cornell's <a href="https://birdnet.cornell.edu/" target="_blank" rel="noopener">BirdNET</a>. Each species shows up as an illustration in the collage, sized by how often it's been heard.</p>
     <button type="button" class="about-explore" data-close="1">explore the birds →</button>
     </div>
+</div>
+
+<div id="stats-graph-help-modal" class="stats-info-modal" aria-hidden="true" role="dialog" aria-labelledby="statsGraphHelpTitle">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="about-card" role="document">
+    <button type="button" class="modal-close" data-close="1" aria-label="close">×</button>
+    <p class="about-eyebrow">the stats</p>
+    <h2 id="statsGraphHelpTitle">How Spotted Species works</h2>
+    <div class="about-body">
+      <p><strong>Spotted Species</strong> shows the species spotted in the selected time window. Each column is one species. Its position along the bottom is based on when it was last spotted, from oldest to newest.</p>
+      <p>The square's height shows how many birds of that species were reported. A taller square means more birds. The graph may show only the most-spotted species when there are too many to fit.</p>
+    </div>
+  </div>
+</div>
+
+<div id="stats-table-help-modal" class="stats-info-modal" aria-hidden="true" role="dialog" aria-labelledby="statsTableHelpTitle">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="about-card" role="document">
+    <button type="button" class="modal-close" data-close="1" aria-label="close">×</button>
+    <p class="about-eyebrow">the stats</p>
+    <h2 id="statsTableHelpTitle">How Top Species works</h2>
+    <div class="about-body">
+      <p><strong>Top Species</strong> lists the five species with the highest bird counts in the selected time window.</p>
+      <p>The number next to each species is the total number of birds reported. It counts birds, rather than simply counting how many sightings were recorded.</p>
+    </div>
+  </div>
 </div>
 
 <nav class="slider" id="slider" aria-label="View">
