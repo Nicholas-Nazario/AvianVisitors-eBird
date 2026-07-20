@@ -38,9 +38,12 @@
     <button type="button" class="stats-help window-help" id="windowHelp" aria-label="How time windows work">?</button>
   </div>
   <div class="menu-actions" aria-label="Settings and information">
-    <button type="button" class="menu-btn" id="locationBtn" aria-label="Location settings" aria-expanded="false" title="Location settings">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
-    </button>
+    <span class="location-action">
+      <button type="button" class="menu-btn" id="locationBtn" aria-label="Location settings" aria-expanded="false" title="Location settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+      </button>
+      <span id="location-nudge" class="location-nudge" role="status" aria-live="polite">set your location for birds near you</span>
+    </span>
     <button type="button" class="menu-btn" id="refreshBtn" aria-label="Refresh data settings" aria-expanded="false" title="Refresh data settings">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>
     </button>
@@ -245,6 +248,20 @@
       <p>The eBird recent-observations API accepts its <strong>back</strong> window in whole days. We request the broader day-based set, then use each observation's <strong>obsDt</strong> timestamp to filter it in our API.</p>
       <p>That lets the 1H, 3H, 6H, and 12H options show sub-day windows even though eBird's request parameter has day granularity.</p>
       <p><a href="https://documenter.getpostman.com/view/664302/S1ENwy59#62b5ffb3-006e-4e8a-8e50-21d90d036edc" target="_blank" rel="noopener">Learn more about the eBird API →</a></p>
+    </div>
+  </div>
+</div>
+
+<div id="location-help-modal" class="stats-info-modal" aria-hidden="true" role="dialog" aria-labelledby="locationHelpTitle">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="about-card" role="document">
+    <button type="button" class="modal-close" data-close="1" aria-label="close">×</button>
+    <p class="about-eyebrow">location settings</p>
+    <h2 id="locationHelpTitle">Distance or hotspot?</h2>
+    <div class="about-body">
+      <p><strong>Distance</strong> searches for recent eBird observations within the selected radius of your latitude and longitude. Use it to see birds reported anywhere near a point.</p>
+      <p><strong>Hotspot</strong> searches only the eBird hotspots you select. Use it when you want observations tied to specific birding locations rather than the whole surrounding area.</p>
+      <p>The coordinates and distance are also used to find nearby hotspots. You can select up to five of them at a time.</p>
     </div>
   </div>
 </div>

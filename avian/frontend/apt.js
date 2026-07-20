@@ -65,6 +65,13 @@
   var staticHead = document.querySelector('.static-head');
   var staticTitle = document.getElementById('staticTitle');
   var staticLocation = document.getElementById('staticLocation');
+  var locationNudge = document.getElementById('location-nudge');
+  if (locationNudge) {
+    setTimeout(function () {
+      locationNudge.classList.add('show');
+      setTimeout(function () { locationNudge.classList.remove('show'); }, 3000);
+    }, 500);
+  }
   function setTitleForView(i) {
     var next = VIEW_TITLES[i];
     if (!staticTitle || staticTitle.textContent === next) return;
@@ -1475,7 +1482,8 @@
     locationItems.innerHTML =
       '<div class="menu-geo" id="menuGeo">'
       + '  <div class="menu-section">'
-      + '    <h3>Location</h3>'
+      + '    <div class="section-header menu-section-head"><h3>Location</h3>'
+      + '      <button type="button" class="stats-help" id="locationHelp" aria-label="Distance versus hotspot">?</button></div>'
       + '    <div class="menu-row source-row">'
       + '      <div><span class="label">Bird source</span>'
       + '        <span class="hint">search by distance or by eBird hotspot</span></div>'
@@ -1541,6 +1549,13 @@
     var hotspotChips = document.getElementById('hotspotChips');
     var hotspotCount = document.getElementById('hotspotCount');
     var findHotspotsBtn = document.getElementById('findHotspots');
+    var locationHelpBtn = document.getElementById('locationHelp');
+    var locationHelpModal = document.getElementById('location-help-modal');
+
+    if (locationHelpBtn) locationHelpBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      locationHelpModal.setAttribute('aria-hidden', 'false');
+    });
 
     function setStatus(msg) {
       if (statusEl) statusEl.textContent = msg || '';
@@ -2681,6 +2696,17 @@
   document.addEventListener('keydown', function (ev) {
     if (ev.key === 'Escape' && timeWindowHelpModal.getAttribute('aria-hidden') === 'false') {
       timeWindowHelpModal.setAttribute('aria-hidden', 'true');
+    }
+  });
+  var locationHelpModal = document.getElementById('location-help-modal');
+  locationHelpModal.addEventListener('click', function (ev) {
+    if (ev.target.dataset && ev.target.dataset.close === '1') {
+      locationHelpModal.setAttribute('aria-hidden', 'true');
+    }
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && locationHelpModal.getAttribute('aria-hidden') === 'false') {
+      locationHelpModal.setAttribute('aria-hidden', 'true');
     }
   });
   document.getElementById('aboutLink').addEventListener('click', function () {
