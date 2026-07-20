@@ -47,16 +47,36 @@ if (isset($_GET['dist']) && is_numeric($_GET['dist'])) {
     $config['dist'] = max(1, min(50, (int)$_GET['dist']));
 }
 $mode = ($_GET['mode'] ?? 'geo') === 'hotspot' ? 'hotspot' : 'geo';
-$regionCode = trim((string)($_GET['regionCode'] ?? ''));
-if (!preg_match('/^[A-Za-z0-9-]+$/', $regionCode)) $regionCode = '';
-$forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
 $action = $_GET['action'] ?? 'stats';
+$rawRegionCodes = $_GET['regionCode'] ?? [];
+if (!is_array($rawRegionCodes)) $rawRegionCodes = [$rawRegionCodes];
+$regionCodes = [];
+foreach ($rawRegionCodes as $rawCode) {
+    $code = trim((string)$rawCode);
+    if ($code === '' || !preg_match('/^[A-Za-z0-9-]+$/', $code)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'invalid regionCode']);
+        exit;
+    }
+    if (!in_array($code, $regionCodes, true)) $regionCodes[] = $code;
+}
+if ($mode === 'hotspot' && !$regionCodes && $action !== 'hotspots') {
+    http_response_code(400);
+    echo json_encode(['error' => 'at least one regionCode is required for hotspot mode']);
+    exit;
+}
+if (count($regionCodes) > 5) {
+    http_response_code(400);
+    echo json_encode(['error' => 'at most five regionCode values are allowed']);
+    exit;
+}
+$forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
 
 // Cache keys include the selected source so switching modes never returns
 // observations from a previous geographic search or hotspot.
 $CACHE_PATH = $DATA_DIR . '/ebird-cache-' . md5(json_encode([
     $mode,
-    $regionCode,
+    $regionCodes,
     round((float)$config['lat'], 5),
     round((float)$config['lng'], 5),
     (int)$config['dist'],
@@ -75,7 +95,7 @@ function parse_obs_dt(string $obsDt): ?int {
     return $t === false ? null : $t;
 }
 
-function fetch_ebird(array $config, string $token, string $cachePath, int $cacheTtl, bool $forceRefresh = false, string $mode = 'geo', string $regionCode = ''): array {
+function fetch_ebird_source(array $config, string $token, string $cachePath, int $cacheTtl, bool $forceRefresh, string $mode, string $regionCode): array {
     if (!$forceRefresh && is_file($cachePath)) {
         $cached = json_decode((string)file_get_contents($cachePath), true);
         if (is_array($cached)
@@ -147,6 +167,20 @@ function fetch_ebird(array $config, string $token, string $cachePath, int $cache
         'obs' => $obs,
     ]));
     return $obs;
+}
+
+function fetch_ebird(array $config, string $token, string $cachePath, int $cacheTtl, bool $forceRefresh = false, string $mode = 'geo', array $regionCodes = []): array {
+    if ($mode !== 'hotspot') {
+        return fetch_ebird_source($config, $token, $cachePath, $cacheTtl, $forceRefresh, 'geo', '');
+    }
+    $all = [];
+    foreach ($regionCodes as $code) {
+        $sourceCache = dirname($cachePath) . '/ebird-hotspot-cache-' . md5(json_encode([
+            $code, (int)($config['back'] ?? 30),
+        ])) . '.json';
+        $all = array_merge($all, fetch_ebird_source($config, $token, $sourceCache, $cacheTtl, $forceRefresh, 'hotspot', $code));
+    }
+    return $all;
 }
 
 function fetch_hotspots(array $config, string $token, string $cachePath, int $cacheTtl, bool $forceRefresh = false): array {
@@ -260,7 +294,7 @@ if ($action === 'hotspots') {
     exit;
 }
 
-$allObs = fetch_ebird($config, $token, $CACHE_PATH, $CACHE_TTL, $forceRefresh, $mode, $regionCode);
+$allObs = fetch_ebird($config, $token, $CACHE_PATH, $CACHE_TTL, $forceRefresh, $mode, $regionCodes);
 
 switch ($action) {
 
