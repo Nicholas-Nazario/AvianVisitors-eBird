@@ -25,8 +25,8 @@ Default query: Central Park area (`lat`/`lng`/`dist` in `avian/data/ebird.json`)
 Hotspot mode accepts one or more repeated hotspot IDs, up to five:
 `?action=recent&mode=hotspot&regionCode[]=L123456&regionCode[]=L654321`.
 Duplicate IDs are collapsed. The API fetches and caches each hotspot separately,
-then combines observations before producing its normal `stats`, `recent`,
-`species`, and `timeseries` response shapes. Species observations are summed;
+then combines observations before producing its normal `recent`, `species`,
+and `timeseries` response shapes. Species observations are summed;
 timeseries observation totals are summed while each species counts once per day.
 
 ## Layout
@@ -52,7 +52,6 @@ The collage frontend polls these about every 30s (and when you change the time w
 |---|---|---|
 | **`recent&hours=12`** | Species observed in that window (`sci`, `com`, `n`, `last_observed`) | Collage tiles, atlas cards + stats “top species” / timeline. `hours` comes from the 1H / 3H / 6H / 12H / 24H / 7D / 30D picker. |
 | **`timeseries&days=30`** | Daily + by-hour counts | Stats charts (observations over days / hours of day). |
-| **`stats`** | Totals / today / last hour / week | “By Period” summary numbers. |
 
 Hotspot requests with no ID, an invalid ID, or more than five submitted IDs
 return `400`. If an upstream hotspot request fails, a still-available stale

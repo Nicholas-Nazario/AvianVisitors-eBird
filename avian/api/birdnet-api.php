@@ -2,7 +2,7 @@
 // AvianVisitors - JSON facade over eBird recent observations and hotspots.
 //
 // Endpoints (?action=...):
-//   stats / recent / species / timeseries / hotspots
+//   recent / species / timeseries / hotspots
 //
 // Config: avian/data/ebird.json (see ebird.example.json). Override token
 // with env EBIRD_API_KEY. Observations are cached briefly on disk so the
@@ -47,7 +47,7 @@ if (isset($_GET['dist']) && is_numeric($_GET['dist'])) {
     $config['dist'] = max(1, min(50, (int)$_GET['dist']));
 }
 $mode = ($_GET['mode'] ?? 'geo') === 'hotspot' ? 'hotspot' : 'geo';
-$action = $_GET['action'] ?? 'stats';
+$action = $_GET['action'] ?? 'recent';
 $rawRegionCodes = $_GET['regionCode'] ?? [];
 if (!is_array($rawRegionCodes)) $rawRegionCodes = [$rawRegionCodes];
 $regionCodes = [];
@@ -288,6 +288,64 @@ function aggregate_species(array $obs): array {
     return $list;
 }
 
+/** Group observation rows by hotspot, then by species within each hotspot. */
+function aggregate_hotspots(array $obs): array {
+    $by = [];
+    foreach ($obs as $row) {
+        if (!is_array($row)) continue;
+        $locId = trim((string)($row['locId'] ?? ''));
+        $locName = trim((string)($row['locName'] ?? ''));
+        if ($locId === '' && $locName === '') continue;
+        $key = $locId !== '' ? $locId : $locName;
+        $sci = trim((string)($row['sciName'] ?? ''));
+        if ($sci === '') continue;
+        $com = trim((string)($row['comName'] ?? $sci));
+        $n = isset($row['howMany']) ? max(1, (int)$row['howMany']) : 1;
+        $dt = (string)($row['obsDt'] ?? '');
+
+        if (!isset($by[$key])) {
+            $by[$key] = [
+                'locId' => $locId !== '' ? $locId : null,
+                'locName' => $locName !== '' ? $locName : $key,
+                'n' => 0,
+                'last_observed' => $dt,
+                'species' => [],
+            ];
+        }
+        $by[$key]['n'] += $n;
+        if ($locName !== '') $by[$key]['locName'] = $locName;
+        if ($dt !== '' && ($by[$key]['last_observed'] === '' || strcmp($dt, $by[$key]['last_observed']) > 0)) {
+            $by[$key]['last_observed'] = $dt;
+        }
+        if (!isset($by[$key]['species'][$sci])) {
+            $by[$key]['species'][$sci] = [
+                'sci' => $sci,
+                'com' => $com,
+                'n' => 0,
+                'last_observed' => $dt,
+            ];
+        }
+        $by[$key]['species'][$sci]['n'] += $n;
+        if ($com !== '') $by[$key]['species'][$sci]['com'] = $com;
+        if ($dt !== '' && ($by[$key]['species'][$sci]['last_observed'] === '' || strcmp($dt, $by[$key]['species'][$sci]['last_observed']) > 0)) {
+            $by[$key]['species'][$sci]['last_observed'] = $dt;
+        }
+    }
+
+    foreach ($by as &$hotspot) {
+        $hotspot['species'] = array_values($hotspot['species']);
+        usort($hotspot['species'], function ($a, $b) {
+            return ($b['n'] <=> $a['n']) ?: strcmp($b['last_observed'], $a['last_observed']);
+        });
+    }
+    unset($hotspot);
+    $list = array_values($by);
+    usort($list, function ($a, $b) {
+        return strcmp($b['last_observed'], $a['last_observed']);
+    });
+    return $list;
+}
+
 if ($action === 'hotspots') {
     echo json_encode([
         'hotspots' => fetch_hotspots($config, $token, $HOTSPOT_CACHE_PATH, $CACHE_TTL, $forceRefresh),
@@ -300,36 +358,6 @@ $allObs = fetch_ebird($config, $token, $CACHE_PATH, $CACHE_TTL, $forceRefresh, $
 
 switch ($action) {
 
-    case 'stats': {
-        $day = filter_by_hours($allObs, 24);
-        $hour = filter_by_hours($allObs, 1);
-        $week = filter_by_hours($allObs, 168);
-        $allAgg = aggregate_species($allObs);
-        $dayAgg = aggregate_species($day);
-        $weekAgg = aggregate_species($week);
-        $started = null;
-        foreach ($allAgg as $s) {
-            if ($started === null || strcmp($s['first_observed'], $started) < 0) {
-                $started = substr($s['first_observed'], 0, 10);
-            }
-        }
-        $obsCount = function (array $obs): int {
-            $n = 0;
-            foreach ($obs as $r) $n += isset($r['howMany']) ? max(1, (int)$r['howMany']) : 1;
-            return $n;
-        };
-        echo json_encode([
-            'totals'    => ['observations' => $obsCount($allObs), 'species' => count($allAgg)],
-            'today'     => ['observations' => $obsCount($day), 'species' => count($dayAgg)],
-            'last_hour' => ['observations' => $obsCount($hour)],
-            'week'      => ['observations' => $obsCount($week), 'species' => count($weekAgg)],
-            'started'   => $started,
-            'as_of'     => date('c'),
-            'source'    => 'ebird',
-        ]);
-        break;
-    }
-
     case 'recent': {
         $hours = max(1, min(1000000, (int)($_GET['hours'] ?? 24)));
         // eBird only retains ~30 days on this endpoint; ALL still caps there.
@@ -338,6 +366,7 @@ switch ($action) {
         echo json_encode([
             'hours' => $hours,
             'species' => $rs,
+            'hotspots' => aggregate_hotspots(filter_by_hours($allObs, $windowHours)),
             'as_of' => date('c'),
             'source' => 'ebird',
         ]);

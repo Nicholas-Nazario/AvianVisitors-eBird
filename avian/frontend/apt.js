@@ -855,6 +855,11 @@
     var attr = sci ? ' data-sci="' + sci.replace(/"/g, '&quot;') + '"' : '';
     return '<li' + attr + '><span class="yr">' + yr + '</span><span>' + label + '</span><span class="ct">' + (ct == null ? '-' : ct) + '</span></li>';
   }
+  function statsEsc(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+      return {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c];
+    });
+  }
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
   function fmtN(n) {
     if (n == null) return '-';
@@ -1212,6 +1217,25 @@
       : liRow('-', 'no observations in window', '');
     document.getElementById('statsTopSpecCap').textContent =
       'most-observed, ' + windowLabel(currentHours);
+
+    var hotspots = (recent.hotspots || []).slice();
+    var hotspotEl = document.getElementById('statsHotspots');
+    if (hotspotEl) {
+      hotspotEl.innerHTML = hotspots.length
+        ? hotspots.map(function (h) {
+            var birds = (h.species || []).map(function (s) {
+              return '<tr><td>' + statsEsc(s.com || s.sci) + '</td><td>' + fmtN(+s.n)
+                + '</td><td>' + statsEsc(relativeObservationTime(s.last_observed)) + '</td></tr>';
+            }).join('');
+            return '<section class="stats-hotspot"><h4>' + statsEsc(h.locName || h.locId || 'unknown hotspot')
+              + '</h4><small>' + fmtN(+h.n) + ' birds · last ' + statsEsc(relativeObservationTime(h.last_observed))
+              + '</small><table><thead><tr><th scope="col">species</th><th scope="col">count</th>'
+              + '<th scope="col">last observed</th></tr></thead><tbody>' + birds + '</tbody></table></section>';
+          }).join('')
+        : '<div class="stats-hotspots-empty">no hotspot observations in window</div>';
+    }
+    var hotspotCap = document.getElementById('statsHotspotsCap');
+    if (hotspotCap) hotspotCap.textContent = 'birds by location, ' + windowLabel(currentHours);
 
   }
 

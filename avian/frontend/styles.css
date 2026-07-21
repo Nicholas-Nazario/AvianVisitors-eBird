@@ -133,12 +133,20 @@
     transition: transform 480ms cubic-bezier(.7,.05,.2,1);
   }
   .view  { flex: 0 0 100%; height: 100%; overflow: auto; padding: 8px 56px 132px; position: relative; }
-  /* Collage and stats views both fit the viewport (no scroll). Atlas
-     keeps normal scroll. */
-  .view#v0, .view#v1 { overflow: hidden; padding: 8px 32px 88px; }
+  /* The collage fits the viewport; stats and atlas can scroll when their
+     content is taller than the available screen. */
+  .view#v0 { overflow: hidden; padding: 8px 32px 88px; }
+  .view#v1 {
+    overflow: auto; padding: 8px 32px 140px;
+    scroll-padding-bottom: 140px;
+  }
   .view#v0 { display: flex; }
   .view#v1 { display: flex; flex-direction: column; }
-  @media (max-width: 700px) { .view { padding: 8px 18px 132px; } .view#v0, .view#v1 { padding: 8px 16px 88px; } }
+  @media (max-width: 700px) {
+    .view { padding: 8px 18px 132px; }
+    .view#v0 { padding: 8px 16px 88px; }
+    .view#v1 { padding: 8px 16px 140px; scroll-padding-bottom: 140px; }
+  }
 
   /* ============ Top bar - window picker (left) + menu button (right). ============
      Visible on every view; the picker is the universal time-window control. */
@@ -758,15 +766,26 @@
   /* Page header is now shared at .stage > .static-head - see top of CSS. */
   /* Stats grid: charts stack on the LEFT, text sections on the RIGHT.
      Each chart is a full-bleed card; each text section is a list with
-     subtle separators. Sized to fit the viewport without scrolling. */
+     subtle separators. Content sizes naturally so the selector below stays clear. */
   .stats-grid {
-    flex: 1 1 auto; min-height: 0;
-    display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 80px;
+    flex: 0 0 auto; min-height: 0;
+    display: grid; grid-template-columns: 1.15fr 0.85fr;
+    grid-template-rows: minmax(320px, auto) auto;
+    grid-template-areas: "timeline side" "hotspots hotspots";
+    gap: 40px 80px;
     max-width: 1100px; margin: 0 auto; width: 100%;
     align-items: stretch;
   }
+  .stats-timeline { grid-area: timeline; }
+  .stats-side { grid-area: side; }
+  .stats-hotspots-group { grid-area: hotspots; }
   @media (max-width: 900px) {
-    .stats-grid { grid-template-columns: 1fr; gap: 40px; }
+    .stats-grid {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+      grid-template-areas: "timeline" "side" "hotspots";
+      gap: 40px;
+    }
     /* Single-column: the timeline has no tall grid sibling to stretch
        against, so pin it to a usable height instead of letting it
        collapse to its (zero) intrinsic height. clamp() keeps it sane
@@ -787,7 +806,7 @@
      chart sits beside the text at the same height instead of stretching to
      the full viewport. */
   @media (min-width: 901px) {
-    .stats-grid { flex: 0 1 auto; margin: auto; }
+    .stats-grid { margin: 0 auto; }
   }
 
   /* Editorial observation timeline. One evenly-spaced column per species,
@@ -995,6 +1014,49 @@
   .stats-side li.sync-hi span:not(.yr):not(.ct) { color: var(--accent); }
   .stats-side li .yr { font: 9.5px ui-monospace, Menlo, monospace; color: var(--accent-2); letter-spacing: 0.04em; }
   .stats-side li .ct { font: 11px ui-monospace, Menlo, monospace; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .stats-hotspots-group { min-width: 0; }
+  .stats-hotspots-group h3 {
+    font: 700 10px ui-monospace, Menlo, monospace; color: var(--ink);
+    letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 1px;
+    border-left: 2px solid var(--accent); padding-left: 10px;
+  }
+  .stats-hotspots-group > small {
+    display: block; font: 9px ui-monospace, Menlo, monospace; color: var(--ink-soft);
+    letter-spacing: 0.06em; margin: 0 0 14px 12px;
+  }
+  #statsHotspots {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 42px;
+  }
+  .stats-hotspot + .stats-hotspot { margin-top: 10px; }
+  .stats-hotspot h4 {
+    margin: 0; font: 600 11px/1.3 ui-serif, Georgia, serif; color: var(--ink);
+  }
+  .stats-hotspot > small, .stats-hotspots-empty {
+    display: block; margin: 1px 0 3px 0; font: 9px ui-monospace, Menlo, monospace; color: var(--ink-soft);
+  }
+  .stats-hotspot table {
+    width: 100%; border-collapse: collapse; table-layout: fixed;
+    font: 10.5px/1.3 ui-monospace, Menlo, monospace;
+  }
+  .stats-hotspot th {
+    padding: 2px 4px; color: var(--ink-soft); font-size: 8px;
+    font-weight: 400; letter-spacing: 0.08em; text-align: left;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .stats-hotspot th:nth-child(1) { width: 48%; }
+  .stats-hotspot th:nth-child(2) { width: 16%; text-align: right; }
+  .stats-hotspot th:nth-child(3) { width: 36%; text-align: right; }
+  .stats-hotspot td {
+    padding: 3px 4px; border-top: 1px solid rgba(26,22,18,0.05);
+    color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .stats-hotspot td:nth-child(2), .stats-hotspot td:nth-child(3) {
+    color: var(--ink-soft); text-align: right; font-size: 9px;
+  }
+  @media (max-width: 700px) {
+    #statsHotspots { grid-template-columns: 1fr; }
+  }
 
   /* (Histogram strip removed - charts moved into the stats-grid LEFT
      column as full-bleed chart cards. See .stats-charts above.) */
