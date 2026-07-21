@@ -50,7 +50,10 @@
   </div>
 </header>
 
-<aside id="location-dd" class="menu-dd" aria-hidden="true">
+<div id="menu-scrim" class="menu-scrim" aria-hidden="true"></div>
+
+<aside id="location-dd" class="menu-dd" aria-hidden="true" aria-label="Location settings">
+  <button type="button" class="menu-drawer-close" data-menu-close aria-label="Close location settings">×</button>
   <div id="location-locked">
     <form class="lock-row" id="unlockForm">
       <input id="lockPass" type="password" placeholder="password" autocomplete="current-password">
@@ -61,16 +64,18 @@
   <nav class="menu-items" id="location-items"></nav>
 </aside>
 
-<aside id="refresh-dd" class="menu-dd" aria-hidden="true">
+<aside id="refresh-dd" class="menu-dd" aria-hidden="true" aria-label="Refresh settings">
+  <button type="button" class="menu-drawer-close" data-menu-close aria-label="Close refresh settings">×</button>
   <div id="refresh-locked">
     <p class="lock-hint">unlock location settings first.</p>
   </div>
   <nav class="menu-items" id="refresh-items"></nav>
 </aside>
 
-<aside id="info-dd" class="menu-dd info-dd" aria-hidden="true">
-  <h3 class="info-title">ABOUT</h3>
-  <p class="about-project">This project is a fork of Teddy Warner's <a href="https://theodore.net/projects/AvianVisitors/" target="_blank" rel="noopener">Avian Visitors</a> project. I live in NYC and while there are many birds to observe here, most of them are not outside my window. This fork uses <a href="https://ebird.org/home" target="_blank" rel="noopener">CornellLab eBird</a> observation data to visualize birds near any lat/lon location or <a href="https://ebird.org/region/US/hotspots" target="_blank" rel="noopener">hotspot</a>. I hope you enjoy it 😁🦤</p>
+<aside id="info-dd" class="menu-dd info-dd" aria-hidden="true" aria-label="About this project">
+  <button type="button" class="menu-drawer-close" data-menu-close aria-label="Close about panel">×</button>
+  <h3 class="info-title">About</h3>
+  <p class="about-project">This project is a fork of Teddy Warner's <a href="https://theodore.net/projects/AvianVisitors/" target="_blank" rel="noopener">Avian Visitors</a> project, which relied on a Raspberry Pi and a mic to detect birds. I live in NYC and while there are many birds to observe here, the main noises outside my window are car horns. Instead, this fork uses <a href="https://ebird.org/home" target="_blank" rel="noopener">CornellLab eBird</a> observation data to visualize birds near any lat/lon location or <a href="https://ebird.org/region/US/hotspots" target="_blank" rel="noopener">hotspot</a>. I hope you enjoy it 😁🦤</p>
   <section class="info-contributing" aria-labelledby="infoContributingTitle">
     <h4 id="infoContributingTitle">Contributing artwork</h4>
     <p>Have artwork to share? <a href="https://github.com/Nicholas-Nazario/AvianVisitors-eBird/issues/new" target="_blank" rel="noopener">Submit it through a GitHub issue →</a> with the <code>new artwork</code> label. Include the species, common name, and artist attribution information such as a name and social links.</p>

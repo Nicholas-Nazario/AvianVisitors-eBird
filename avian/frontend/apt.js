@@ -1444,6 +1444,7 @@
   var locationDd = document.getElementById('location-dd');
   var refreshDd = document.getElementById('refresh-dd');
   var infoDd = document.getElementById('info-dd');
+  var menuScrim = document.getElementById('menu-scrim');
   var locationBtn = document.getElementById('locationBtn');
   var refreshMenuBtn = document.getElementById('refreshBtn');
   var infoBtn = document.getElementById('infoBtn');
@@ -1462,6 +1463,10 @@
     panel.setAttribute('aria-hidden', 'true');
     var entry = menuEntries.find(function (item) { return item.panel === panel; });
     if (entry) entry.button.setAttribute('aria-expanded', 'false');
+    if (!menuEntries.some(function (item) { return item.panel.classList.contains('open'); })) {
+      menuScrim.classList.remove('open');
+      menuScrim.setAttribute('aria-hidden', 'true');
+    }
   }
   function openDd(panel) {
     if (panel === refreshDd && locationLocked.style.display !== 'none') {
@@ -1473,6 +1478,8 @@
     });
     panel.classList.add('open');
     panel.setAttribute('aria-hidden', 'false');
+    menuScrim.classList.add('open');
+    menuScrim.setAttribute('aria-hidden', 'false');
     var entry = menuEntries.find(function (item) { return item.panel === panel; });
     if (entry) entry.button.setAttribute('aria-expanded', 'true');
     if (panel === locationDd && locationLocked.style.display !== 'none') {
@@ -1485,6 +1492,10 @@
   function toggleDd(panel) { panel.classList.contains('open') ? closeDd(panel) : openDd(panel); }
   menuEntries.forEach(function (entry) {
     entry.button.addEventListener('click', function (e) { e.stopPropagation(); toggleDd(entry.panel); });
+    entry.panel.querySelector('[data-menu-close]').addEventListener('click', function () { closeDd(entry.panel); });
+  });
+  menuScrim.addEventListener('click', function () {
+    menuEntries.forEach(function (item) { closeDd(item.panel); });
   });
   staticLocation.addEventListener('click', function (e) { e.stopPropagation(); openDd(locationDd); });
   document.addEventListener('click', function (e) {

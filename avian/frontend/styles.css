@@ -247,25 +247,40 @@
     pointer-events: none; z-index: 0;
   }
 
-  /* ============ Menu dropdown ============ */
-  .menu-dd {
-    position: fixed; top: 68px; right: 28px; z-index: 25;
-    width: 360px; max-width: calc(100vw - 24px);
-    max-height: calc(100vh - 80px); overflow: auto;
-    background: var(--paper); border-radius: 12px;
-    box-shadow: var(--edge-lg);
-    padding: 14px; opacity: 0; transform: translateY(-6px);
-    pointer-events: none; transition: opacity 200ms ease, transform 200ms ease;
+  /* ============ Right-side settings drawer ============ */
+  .menu-scrim {
+    position: fixed; inset: 0; z-index: 40;
+    background: rgba(26,22,18,0.12);
+    opacity: 0; pointer-events: none;
+    transition: opacity 220ms ease;
   }
-  .menu-dd.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
-  #location-dd { right: 114px; }
-  #refresh-dd { right: 71px; }
-  #info-dd { width: 420px; }
+  .menu-scrim.open { opacity: 1; pointer-events: auto; }
+  .menu-dd {
+    position: fixed; inset: 0 0 0 auto; z-index: 45;
+    width: min(500px, 100vw); max-width: 100%; overflow-x: hidden; overflow-y: auto;
+    background: var(--paper); border-radius: 16px 0 0 16px;
+    box-shadow: -12px 0 36px rgba(26,22,18,0.12), var(--edge-lg);
+    padding: 30px 30px 36px; opacity: 0; transform: translateX(100%);
+    pointer-events: none; transition: opacity 220ms ease, transform 280ms cubic-bezier(.7,.05,.2,1);
+  }
+  .menu-dd.open { opacity: 1; transform: translateX(0); pointer-events: auto; }
+  .menu-drawer-close {
+    position: absolute; top: 18px; right: 22px;
+    width: 32px; height: 32px; padding: 0;
+    border: 0; border-radius: 999px; background: var(--paper-2);
+    color: var(--ink); box-shadow: var(--raised); cursor: pointer;
+    font: 22px/1 ui-serif, Georgia, serif;
+  }
+  .menu-drawer-close:hover { color: var(--accent); }
+  .menu-dd > .menu-items { padding-top: 28px; }
+  .menu-dd > #location-locked,
+  .menu-dd > #refresh-locked { padding-top: 28px; }
+  #info-dd { width: min(560px, 100vw); padding-top: 78px; }
   .info-title {
     margin: 0 0 10px 0;
     color: var(--ink);
-    font: 700 9px/1 ui-monospace, Menlo, monospace;
-    letter-spacing: 0.20em;
+    font: 700 22px/1.15 ui-serif, Georgia, serif;
+    letter-spacing: 0.02em;
   }
   .about-project {
     margin: 0;
@@ -296,6 +311,12 @@
     font: 11px ui-monospace, Menlo, monospace;
   }
   .info-dd .built-by { margin-top: 14px; white-space: nowrap; }
+
+  @media (max-width: 700px) {
+    .menu-dd { padding: 26px 20px 30px; border-radius: 14px 0 0 14px; }
+    #info-dd { padding-top: 70px; }
+    .menu-drawer-close { top: 14px; right: 16px; }
+  }
 
   .lock-row {
     display: flex; gap: 6px; align-items: stretch;
@@ -362,9 +383,9 @@
   }
   .menu-section:first-of-type { margin-top: 6px; border-top: 0; padding-top: 0; }
   .menu-section h3 {
-    font: 700 9px ui-monospace, Menlo, monospace; letter-spacing: 0.20em;
-    color: var(--ink); text-transform: uppercase;
-    margin: 0 0 8px 4px;
+    font: 700 22px/1.15 ui-serif, Georgia, serif;
+    letter-spacing: 0.02em; color: var(--ink); text-transform: none;
+    margin: 0 0 14px 4px;
   }
   .menu-section-head {
     display: flex; align-items: center; justify-content: space-between;
@@ -1462,7 +1483,6 @@
   /* Mobile compact: drawer takes near-full width, admin pads tighter,
      section heads + cards downsize. */
   @media (max-width: 700px) {
-    .menu-dd { top: 50px; right: 8px !important; left: 8px; width: auto; padding: 10px; }
     .admin-screen { inset: 52px 0 60px 0; }
     .admin-frame { padding: 0 14px 32px; }
     .admin-title { margin-bottom: 18px; }
