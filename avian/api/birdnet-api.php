@@ -2,7 +2,7 @@
 // AvianVisitors - JSON facade over eBird recent observations and hotspots.
 //
 // Endpoints (?action=...):
-//   recent / species / timeseries / hotspots
+//   dashboard / species / hotspots
 //
 // Config: avian/data/ebird.json (see ebird.example.json). Override token
 // with env EBIRD_API_KEY. Observations are cached briefly on disk so the
@@ -47,7 +47,7 @@ if (isset($_GET['dist']) && is_numeric($_GET['dist'])) {
     $config['dist'] = max(1, min(50, (int)$_GET['dist']));
 }
 $mode = ($_GET['mode'] ?? 'geo') === 'hotspot' ? 'hotspot' : 'geo';
-$action = $_GET['action'] ?? 'recent';
+$action = $_GET['action'] ?? 'dashboard';
 $rawRegionCodes = $_GET['regionCode'] ?? [];
 if (!is_array($rawRegionCodes)) $rawRegionCodes = [$rawRegionCodes];
 $regionCodes = [];
@@ -113,8 +113,10 @@ function fetch_ebird_source(array $config, string $token, string $cachePath, int
             echo json_encode(['error' => 'regionCode is required for hotspot mode']);
             exit;
         }
-        $url = 'https://api.ebird.org/v2/data/obs/' . rawurlencode($regionCode)
-            . '/recent?' . http_build_query(['back' => $back]);
+        $url = 'https://api.ebird.org/v2/data/obs/US/recent?' . http_build_query([
+            'back' => $back,
+            'r' => $regionCode,
+        ]);
     } else {
         $query = http_build_query([
             'lat' => $config['lat'],
@@ -173,14 +175,13 @@ function fetch_ebird(array $config, string $token, string $cachePath, int $cache
     if ($mode !== 'hotspot') {
         return fetch_ebird_source($config, $token, $cachePath, $cacheTtl, $forceRefresh, 'geo', '');
     }
-    $all = [];
-    foreach ($regionCodes as $code) {
-        $sourceCache = dirname($cachePath) . '/ebird-hotspot-cache-' . md5(json_encode([
-            $code, (int)($config['back'] ?? 30),
-        ])) . '.json';
-        $all = array_merge($all, fetch_ebird_source($config, $token, $sourceCache, $cacheTtl, $forceRefresh, 'hotspot', $code));
-    }
-    return $all;
+    // eBird accepts the requested hotspot IDs as a comma-separated `r` list.
+    // The path region is only a required API parameter here; the `r` values
+    // determine which locations are actually returned.
+    $sourceCache = dirname($cachePath) . '/ebird-hotspots-batch-' . md5(json_encode([
+        $regionCodes, (int)($config['back'] ?? 30),
+    ])) . '.json';
+    return fetch_ebird_source($config, $token, $sourceCache, $cacheTtl, $forceRefresh, 'hotspot', implode(',', $regionCodes));
 }
 
 function fetch_hotspots(array $config, string $token, string $cachePath, int $cacheTtl, bool $forceRefresh = false): array {
@@ -346,6 +347,43 @@ function aggregate_hotspots(array $obs): array {
     return $list;
 }
 
+function build_timeseries(array $obs, int $days): array {
+    $window = filter_by_hours($obs, $days * 24);
+    $byDate = [];
+    $byHour = array_fill(0, 24, 0);
+    foreach ($window as $r) {
+        $dt = (string)($r['obsDt'] ?? '');
+        $ts = parse_obs_dt($dt);
+        if ($ts === null) continue;
+        $date = substr($dt, 0, 10);
+        $hour = (int)date('G', $ts);
+        $n = isset($r['howMany']) ? max(1, (int)$r['howMany']) : 1;
+        if (!isset($byDate[$date])) $byDate[$date] = ['observations' => 0, 'species' => []];
+        $byDate[$date]['observations'] += $n;
+        $sci = (string)($r['sciName'] ?? '');
+        if ($sci !== '') $byDate[$date]['species'][$sci] = true;
+        $byHour[$hour] += $n;
+    }
+    $daily = [];
+    ksort($byDate);
+    foreach ($byDate as $date => $row) {
+        $daily[] = [
+            'date' => $date,
+            'observations' => $row['observations'],
+            'species' => count($row['species']),
+        ];
+    }
+    $by_hour = [];
+    foreach ($byHour as $h => $n) {
+        if ($n > 0) $by_hour[] = ['hour' => $h, 'observations' => $n];
+    }
+    return [
+        'days' => $days,
+        'daily' => $daily,
+        'by_hour' => $by_hour,
+    ];
+}
+
 if ($action === 'hotspots') {
     echo json_encode([
         'hotspots' => fetch_hotspots($config, $token, $HOTSPOT_CACHE_PATH, $CACHE_TTL, $forceRefresh),
@@ -358,16 +396,26 @@ $allObs = fetch_ebird($config, $token, $CACHE_PATH, $CACHE_TTL, $forceRefresh, $
 
 switch ($action) {
 
-    case 'recent': {
+    case 'dashboard': {
         $hours = max(1, min(1000000, (int)($_GET['hours'] ?? 24)));
+        $days = max(1, min(90, (int)($_GET['days'] ?? 30)));
         // eBird only retains ~30 days on this endpoint; ALL still caps there.
         $windowHours = min($hours, 30 * 24);
-        $rs = aggregate_species(filter_by_hours($allObs, $windowHours));
-        echo json_encode([
+        $asOf = date('c');
+        $recent = [
             'hours' => $hours,
-            'species' => $rs,
+            'species' => aggregate_species(filter_by_hours($allObs, $windowHours)),
             'hotspots' => aggregate_hotspots(filter_by_hours($allObs, $windowHours)),
-            'as_of' => date('c'),
+            'as_of' => $asOf,
+            'source' => 'ebird',
+        ];
+        $timeseries = build_timeseries($allObs, $days);
+        $timeseries['as_of'] = $asOf;
+        $timeseries['source'] = 'ebird';
+        echo json_encode([
+            'recent' => $recent,
+            'timeseries' => $timeseries,
+            'as_of' => $asOf,
             'source' => 'ebird',
         ]);
         break;
@@ -412,47 +460,6 @@ switch ($action) {
             ];
         }
         echo json_encode(['sci' => $sci, 'summary' => $summary, 'observations' => $observations, 'source' => 'ebird']);
-        break;
-    }
-
-    case 'timeseries': {
-        $days = max(1, min(90, (int)($_GET['days'] ?? 30)));
-        $window = filter_by_hours($allObs, $days * 24);
-        $byDate = [];
-        $byHour = array_fill(0, 24, 0);
-        foreach ($window as $r) {
-            $dt = (string)($r['obsDt'] ?? '');
-            $ts = parse_obs_dt($dt);
-            if ($ts === null) continue;
-            $date = substr($dt, 0, 10);
-            $hour = (int)date('G', $ts);
-            $n = isset($r['howMany']) ? max(1, (int)$r['howMany']) : 1;
-            if (!isset($byDate[$date])) $byDate[$date] = ['observations' => 0, 'species' => []];
-            $byDate[$date]['observations'] += $n;
-            $sci = (string)($r['sciName'] ?? '');
-            if ($sci !== '') $byDate[$date]['species'][$sci] = true;
-            $byHour[$hour] += $n;
-        }
-        $daily = [];
-        ksort($byDate);
-        foreach ($byDate as $date => $row) {
-            $daily[] = [
-                'date' => $date,
-                'observations' => $row['observations'],
-                'species' => count($row['species']),
-            ];
-        }
-        $by_hour = [];
-        foreach ($byHour as $h => $n) {
-            if ($n > 0) $by_hour[] = ['hour' => $h, 'observations' => $n];
-        }
-        echo json_encode([
-            'days' => $days,
-            'daily' => $daily,
-            'by_hour' => $by_hour,
-            'as_of' => date('c'),
-            'source' => 'ebird',
-        ]);
         break;
     }
 

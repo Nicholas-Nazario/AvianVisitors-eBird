@@ -23,11 +23,11 @@ Alias: `alias avian='/Users/nicholasnazario/src/AvianVisitors-eBird/serve.sh'`
 Default query: Central Park area (`lat`/`lng`/`dist` in `avian/data/ebird.json`).
 
 Hotspot mode accepts one or more repeated hotspot IDs, up to five:
-`?action=recent&mode=hotspot&regionCode[]=L123456&regionCode[]=L654321`.
-Duplicate IDs are collapsed. The API fetches and caches each hotspot separately,
-then combines observations before producing its normal `recent`, `species`,
-and `timeseries` response shapes. Species observations are summed;
-timeseries observation totals are summed while each species counts once per day.
+`?action=dashboard&mode=hotspot&regionCode[]=L123456&regionCode[]=L654321`.
+Duplicate IDs are collapsed. The API batches the selected hotspot IDs into one
+eBird request, then combines observations before producing both dashboard
+datasets. Species observations are summed; timeseries observation totals are
+summed while each species counts once per day.
 
 ## Layout
 
@@ -46,17 +46,23 @@ eBird `sciName` → illustration slug (`Branta canadensis` → `branta-canadensi
 
 ## API (`avian/api/birdnet-api.php`)
 
-The collage frontend polls these about every 30s (and when you change the time window). All reshape eBird data.
+The collage frontend requests `dashboard` on page load, when the selected
+location or mode changes, and whenever the selected refresh interval fires
+(1m, 5m, 15m, 1h, or 1d). Changing the time window also requests `dashboard`
+with the new `hours` value.
 
 | Call | What it returns | What the UI uses it for |
 |---|---|---|
-| **`recent&hours=12`** | Species observed in that window (`sci`, `com`, `n`, `last_observed`) | Collage tiles, atlas cards + stats “top species” / timeline. `hours` comes from the 1H / 3H / 6H / 12H / 24H / 7D / 30D picker. |
-| **`timeseries&days=30`** | Daily + by-hour counts | Stats charts (observations over days / hours of day). |
+| **`dashboard&hours=12&days=30`** | Nested `recent` species/hotspot data and `timeseries` daily/by-hour counts | All collage, atlas, and stats views. `hours` comes from the 1H / 3H / 6H / 12H / 24H / 7D / 30D picker. |
+| **`hotspots`** | Nearby hotspot records (`hotspots`, `as_of`) | Populates the hotspot selector in the location menu. |
+| **`species&sci=...`** | One species summary and up to 500 observations | Populates the species detail view. |
 
-Hotspot requests with no ID, an invalid ID, or more than five submitted IDs
-return `400`. If an upstream hotspot request fails, a still-available stale
-cache is used; otherwise the combined request fails rather than returning
-partial data.
+In hotspot mode, `dashboard` and `species` requests require at least one
+`regionCode`; invalid IDs or more than five unique IDs return `400`. Duplicate
+IDs are collapsed. If an upstream observation request fails, a still-available
+stale cache is used; otherwise the request fails rather than returning partial
+data. The `refresh=1` query parameter bypasses a fresh observation cache and
+forces an upstream fetch.
 
 ## Fly.io backend + GitHub Pages frontend
 

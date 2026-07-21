@@ -158,7 +158,7 @@
       currentHours = +b.dataset.h;
       writeLS('bird:window', String(currentHours));
       syncPill(winPick);
-      // Actual data refresh is wired below via refreshRecent().
+      // Actual data refresh is wired below via refreshWindow().
     });
   });
 
@@ -822,7 +822,7 @@
   };
 
   // Collage renders whatever is in DATA.recent.species. When the picker
-  // changes, refreshRecent() refetches and re-renders. Empty state shows
+  // changes, refreshWindow() refetches and re-renders. Empty state shows
   // a "no observations in this window" message.
   function renderCollageFromData(animate) {
     // A null recent response means the request is still pending (or failed),
@@ -952,11 +952,11 @@
 
   // ---- Live Pi data layer ----
   // All views read from this DATA object. Populated by fetchAll() on page
-  // load and by refreshRecent() when the window picker changes.
+  // load and by refreshWindow() when the window picker changes.
   var STATS_DAYS = 30;
   var DATA = {
-    timeseries: null,   // birdApi('action=timeseries&days=30')
-    recent: null,       // birdApi('action=recent&hours=N')
+    timeseries: null,
+    recent: null,
   };
 
   // Derived chart arrays, backfilled so 30 buckets always exist.
@@ -1206,7 +1206,7 @@
   function renderStatsLists() {
     var recent = DATA.recent || { species: [] };
 
-    // Top Species - top 5 species in the current window. ./avian/api/birdnet-api.php?action=recent
+    // Top Species - top 5 species in the current window.
     // already returns species sorted by last_observed DESC; re-sort by count.
     var ranked = (recent.species || [])
       .slice()
@@ -1369,34 +1369,37 @@
     renderAtlas(animate);
   }
 
-  function refreshRecent(animate) {
+  function refreshWindow(animate) {
     // Capture the window this fetch was issued for. If the user
     // changes the picker again before it resolves - or a slower poll
     // lands later - we discard the stale response so the collage
     // never reverts to a different window.
     var forHours = currentHours;
     loadingStart();
-    return fetchBirdJson(birdApi('action=recent&hours=' + forHours))
+    return fetchBirdJson(birdApi('action=dashboard&hours=' + forHours + '&days=30'))
       .then(function (j) {
         if (forHours !== currentHours) return; // window changed mid-flight
-        DATA.recent = j; renderWindowDependent(animate);
+        if (j && j.recent) DATA.recent = j.recent;
+        if (j && j.timeseries) DATA.timeseries = j.timeseries;
+        renderWindowDependent(animate);
       })
-      .catch(function (e) { console.warn('recent fetch failed', e); })
+      .catch(function (e) { console.warn('dashboard fetch failed', e); })
       .finally(loadingEnd);
   }
   function refreshAll(animate, force) {
     var forHours = currentHours;
     if (force) forceRefreshOnce = true;
     loadingStart();
-    return Promise.all([
-      fetchBirdJson(birdApi('action=timeseries&days=30')).catch(function () { return null; }),
-      fetchBirdJson(birdApi('action=recent&hours=' + forHours)).catch(function () { return null; }),
-    ]).then(function (parts) {
+    return fetchBirdJson(birdApi('action=dashboard&hours=' + forHours + '&days=30'))
+      .catch(function () { return null; })
+      .then(function (response) {
       forceRefreshOnce = false;
-      DATA.timeseries = parts[0];
-      // Only accept the recent slice if the window hasn't changed
-      // since this poll started - otherwise keep what's there.
-      if (forHours === currentHours && parts[1]) DATA.recent = parts[1];
+      if (response) {
+        if (response.timeseries) DATA.timeseries = response.timeseries;
+        // Only accept the recent slice if the window hasn't changed since
+        // this poll started - otherwise keep what's there.
+        if (forHours === currentHours && response.recent) DATA.recent = response.recent;
+      }
       recomputeDerived();
       renderTimeIndependent(animate);
       renderCollageFromData(animate);
@@ -1408,10 +1411,10 @@
   // animate=true so the collage blooms in on first load.
   refreshAll(true);
 
-  // Hook into the window picker so the data refetches on change. Pass
+  // Hook into the window picker so the dashboard refetches on change. Pass
   // animate=true so the collage blooms (the silent poll passes nothing).
   winBtns.forEach(function (b) {
-    b.addEventListener('click', function () { refreshRecent(true); });
+    b.addEventListener('click', function () { refreshWindow(true); });
   });
 
   // ---- Realtime polling ----
