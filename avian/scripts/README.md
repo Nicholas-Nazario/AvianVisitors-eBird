@@ -7,7 +7,7 @@ this directory.
 
 ## Pipeline
 
-1. `pregen.py` renders each bird with Gemini 2.5 Flash Image, on a flat cream ground.
+1. `pregen.py` renders each bird with Gemini 3.1 Flash Image, on a flat cream ground.
 2. `cutout.py` removes the ground with BiRefNet and crops to the bird.
 3. `build_masks.py` rebuilds the collage silhouette masks into `dims.json` + `masks.json`, which `apt.js` fetches at load.
 4. `verify.py` (optional) runs an adversarial species-ID + anatomy check.
@@ -18,6 +18,10 @@ export GEMINI_API_KEY='your-key'
 
 # 1. generate (cream ground) for your region's species
 python3 pregen.py --labels ~/BirdNET-Pi/model/labels.txt --ebird-region US-CA
+
+# Export copy-ready prompts without calling Gemini
+python3 pregen.py --species "Calypte anna|Anna's Hummingbird" \
+  --prompt-output prompts
 
 # 2. cut the ground off and crop
 python3 cutout.py
@@ -30,6 +34,9 @@ python3 build_masks.py
 directly). `--ebird-region` filters to species actually seen in your region
 (needs `EBIRD_API_KEY`). Re-render one bird with
 `--species "Calypte anna|Anna's Hummingbird" --force`.
+`--prompt-output DIR` writes one `.txt` prompt per pose to `DIR` and does not
+require `GEMINI_API_KEY`; attach the anatomy/style references manually in
+Google AI Studio.
 
 ## Why a cream ground
 

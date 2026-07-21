@@ -4,6 +4,7 @@ __pycache__/
 .vscode
 .DS_Store
 .cursor/
+.venv/
 
 # Local serve root + secrets / cache
 .local-serve/
@@ -19,6 +20,7 @@ avian/data/ebird-hotspot-*.json
 .claude/
 avian/assets/references/
 avian/assets/_legacy/
+avian/scripts/prompts/
 
 # Local-only agent working material
 docs/agent-instructions/

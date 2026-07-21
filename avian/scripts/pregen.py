@@ -8,7 +8,7 @@ Step 1 of the illustration pipeline:
 
 Reads a species list (BirdNET-Pi's labels.txt, eBird, or stdin),
 fetches a Wikipedia reference photo for each species, and generates an
-illustration via the Gemini 2.5 Flash Image API. Saves PNGs into
+illustration via the Gemini 3.1 Flash Image API. Saves PNGs into
 avian/assets/illustrations/.
 
 The prompt renders each bird on a CREAM ground, not a transparent one:
@@ -50,6 +50,10 @@ Usage:
     # Re-render everything after a prompt change:
     python3 pregen.py --labels ~/BirdNET-Pi/model/labels.txt --force
 
+    # Export copy-ready prompts without calling Gemini:
+    python3 pregen.py --species "Calypte anna|Anna's Hummingbird" \\
+                      --prompt-output prompts
+
 Set GEMINI_API_KEY in the environment (preferred) or pass --gemini-key.
 """
 from __future__ import annotations
@@ -65,11 +69,13 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-# Gemini's image-out model. The endpoint changes occasionally; if you
-# get a 404 here, check Google's model catalog and bump this.
+# Gemini's image-out model. This script uses the standard generateContent
+# request shape, so the model must be addressed through /v1/models.
+# API reference: https://ai.google.dev/api/generate-content
+# Image generation guide: https://ai.google.dev/gemini-api/docs/generate-content/image-generation
 GEMINI_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-2.5-flash-image:generateContent"
+    "https://generativelanguage.googleapis.com/v1/models/"
+    "gemini-3.1-flash-image:generateContent"
 )
 POSES = {1: "perched", 2: "in flight with wings spread"}
 
@@ -251,6 +257,20 @@ def load_prompt(path: Path) -> str:
     return (m.group(1) if m else text).strip()
 
 
+def build_prompt(prompt: str, sci: str, com: str, pose: int,
+                 anti_ref_key: str | None = None,
+                 species_note: str | None = None) -> str:
+    """Substitute the per-bird values into the reusable prompt template."""
+    body = (prompt
+            .replace("{sci_name}", sci)
+            .replace("{com_name}", com)
+            .replace("{pose}", POSES[pose])
+            .replace("{anti_ref_line}", _anti_ref_line(anti_ref_key)))
+    if species_note:
+        body += "\n\nSpecies-specific note: " + species_note
+    return body
+
+
 def ebird_filter(species, region: str, key: str):
     """Intersect a label set with the eBird species list for a region.
     Region codes: US-CA (state), US-CA-085 (county)."""
@@ -414,13 +434,7 @@ def gen_one(
                   appended as the last paragraph before the reference
                   block.
     """
-    body = (prompt
-            .replace("{sci_name}", sci)
-            .replace("{com_name}", com)
-            .replace("{pose}", POSES[pose])
-            .replace("{anti_ref_line}", _anti_ref_line(anti_ref_key)))
-    if species_note:
-        body = body + "\n\nSpecies-specific note: " + species_note
+    body = build_prompt(prompt, sci, com, pose, anti_ref_key, species_note)
 
     parts: list[dict] = [{"text": body}]
     if positive_ref:
@@ -547,6 +561,8 @@ def main() -> int:
     ap.add_argument("--out", type=Path,
                     default=Path(__file__).resolve().parents[1] / "assets" / "illustrations",
                     help="Output directory (default: avian/assets/illustrations/)")
+    ap.add_argument("--prompt-output", type=Path,
+                    help="Write copy-ready prompt files here instead of calling Gemini (no API key required)")
     ap.add_argument("--refs", type=Path,
                     default=Path(__file__).resolve().parents[1] / "assets" / "references",
                     help="Reference photo cache directory (default: avian/assets/references/)")
@@ -571,7 +587,7 @@ def main() -> int:
     args = ap.parse_args()
 
     gemini_key = args.gemini_key or os.environ.get("GEMINI_API_KEY", "")
-    if not gemini_key:
+    if not gemini_key and not args.prompt_output:
         print("error: GEMINI_API_KEY required (--gemini-key or env)", file=sys.stderr)
         return 2
 
@@ -600,7 +616,10 @@ def main() -> int:
         species = species[:args.limit]
 
     prompt = load_prompt(args.prompt)
-    args.out.mkdir(parents=True, exist_ok=True)
+    if args.prompt_output:
+        args.prompt_output.mkdir(parents=True, exist_ok=True)
+    else:
+        args.out.mkdir(parents=True, exist_ok=True)
     anti_paths: dict[str, Path] = {}
     if not args.no_refs:
         for key in ANTI_REFS:
@@ -612,7 +631,10 @@ def main() -> int:
         print(f"[notes] loaded per-species addenda for {len(notes)} species")
 
     total = len(species) * len(args.poses)
-    print(f"generating up to {total} illustrations into {args.out}/")
+    if args.prompt_output:
+        print(f"writing up to {total} prompts into {args.prompt_output}/")
+    else:
+        print(f"generating up to {total} illustrations into {args.out}/")
     for key, p in anti_paths.items():
         print(f"[refs] {ANTI_REFS[key]['common_name']} anti-reference: {p.name}")
 
@@ -635,6 +657,23 @@ def main() -> int:
         for pose in args.poses:
             fname = f"{slug}.png" if pose == 1 else f"{slug}-{pose}.png"
             path = args.out / fname
+            if args.prompt_output:
+                prompt_path = args.prompt_output / fname.replace(".png", ".txt")
+                if prompt_path.exists() and not args.force:
+                    skipped_existing += 1
+                    continue
+                body = build_prompt(prompt, sci, com, pose,
+                                    anti_key_for_call, notes.get(sci))
+                prompt_path.write_text(body + "\n", encoding="utf-8")
+                done += 1
+                attachments = [f"IMAGE 1: {pos_ref}" if pos_ref else "IMAGE 1: no local reference"]
+                if anti:
+                    attachments.append(f"IMAGE 2: {anti}")
+                if style_ref_path := (args.styles / select_style_ref(sci, pose)):
+                    if style_ref_path.exists():
+                        attachments.append(f"IMAGE 3: {style_ref_path}")
+                print(f"  [ok]   {prompt_path} ({'; '.join(attachments)})")
+                continue
             if path.exists() and not args.force:
                 skipped_existing += 1
                 continue
