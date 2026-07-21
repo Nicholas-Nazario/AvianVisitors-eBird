@@ -76,6 +76,12 @@
 </aside>
 
 <main class="stage">
+  <div class="ebird-loading is-active" id="ebirdLoading" aria-live="polite" aria-hidden="false">
+    <div class="ebird-loader" role="status">
+      <img class="ebird-loader-bird" id="ebirdLoaderBird" alt="" hidden>
+      <span>gathering nearby birds<span class="ebird-loader-dots" aria-hidden="true">...</span></span>
+    </div>
+  </div>
   <header class="static-head">
     <button type="button" class="pre" id="aboutLink">the birds</button>
     <h1 id="staticTitle">Observed Recently</h1>

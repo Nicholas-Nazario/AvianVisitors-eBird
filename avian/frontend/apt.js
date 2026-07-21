@@ -825,7 +825,16 @@
   // changes, refreshRecent() refetches and re-renders. Empty state shows
   // a "no observations in this window" message.
   function renderCollageFromData(animate) {
-    var items = (DATA.recent && DATA.recent.species) || [];
+    // A null recent response means the request is still pending (or failed),
+    // not that eBird returned zero birds. Keep the collage blank in that
+    // state so the loading overlay is the only loading treatment.
+    if (!DATA.recent) {
+      collage.innerHTML = '';
+      collagePlaced = [];
+      collageHovered = null;
+      return;
+    }
+    var items = Array.isArray(DATA.recent.species) ? DATA.recent.species : [];
     renderCollage(items, animate);
   }
   var rTimer;
@@ -955,6 +964,69 @@
   function fetchJson(url) {
     return fetch(url, { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); });
+  }
+  // TEMP: simulate a slower eBird response while tuning the loading state.
+  var EBIRD_TEST_DELAY_MS = 1000;
+  function fetchBirdJson(url) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, EBIRD_TEST_DELAY_MS);
+    }).then(function () { return fetchJson(url); });
+  }
+
+  // Keep the bird loader visible while any eBird request is in flight. A
+  // counter matters here because a background poll can overlap a window
+  // change, and the loader should not disappear when only one finishes.
+  var ebirdLoading = document.getElementById('ebirdLoading');
+  var ebirdLoaderBird = document.getElementById('ebirdLoaderBird');
+  var loadingRequests = 0;
+  var lastLoaderSlug = '';
+  var LOADER_FLIGHT_CUTOUTS = [
+    'buteo-jamaicensis-2', 'archilochus-colubris-2', 'columba-livia-2',
+    'tachycineta-bicolor-2', 'aix-sponsa-2', 'branta-canadensis-2',
+    'polioptila-caerulea-2', 'ardea-alba-2', 'sterna-forsteri-2',
+    'turdus-migratorius-2', 'falco-sparverius-2'
+  ];
+  var loaderPreloadImages = [];
+  function preloadLoaderBirds() {
+    LOADER_FLIGHT_CUTOUTS.forEach(function (slug) {
+      var image = new Image();
+      image.decoding = 'async';
+      image.src = './avian/assets/loading-animation-cutouts/' + slug + '.png';
+      loaderPreloadImages.push(image);
+    });
+  }
+  function pickLoaderBird() {
+    if (!ebirdLoaderBird || !LOADER_FLIGHT_CUTOUTS.length) return;
+    var choices = LOADER_FLIGHT_CUTOUTS.length > 1
+      ? LOADER_FLIGHT_CUTOUTS.filter(function (slug) { return slug !== lastLoaderSlug; })
+      : LOADER_FLIGHT_CUTOUTS;
+    var slug = choices[Math.floor(Math.random() * choices.length)];
+    lastLoaderSlug = slug;
+    ebirdLoaderBird.hidden = true;
+    ebirdLoaderBird.onload = function () { ebirdLoaderBird.hidden = false; };
+    ebirdLoaderBird.onerror = function () { ebirdLoaderBird.hidden = true; };
+    ebirdLoaderBird.src = './avian/assets/loading-animation-cutouts/' + slug + '.png';
+  }
+  preloadLoaderBirds();
+  function loadingStart() {
+    if (loadingRequests === 0) pickLoaderBird();
+    // Do not leave a previous zero-bird empty state visible underneath a
+    // fresh request; it is only valid once that request has completed.
+    if (loadingRequests === 0 && collage.querySelector('.empty-nest')) {
+      collage.innerHTML = '';
+      collagePlaced = [];
+      collageHovered = null;
+    }
+    loadingRequests++;
+    if (!ebirdLoading) return;
+    ebirdLoading.classList.add('is-active');
+    ebirdLoading.setAttribute('aria-hidden', 'false');
+  }
+  function loadingEnd() {
+    loadingRequests = Math.max(0, loadingRequests - 1);
+    if (loadingRequests || !ebirdLoading) return;
+    ebirdLoading.classList.remove('is-active');
+    ebirdLoading.setAttribute('aria-hidden', 'true');
   }
 
   function backfillDaily(daily, days) {
@@ -1279,19 +1351,22 @@
     // lands later - we discard the stale response so the collage
     // never reverts to a different window.
     var forHours = currentHours;
-    return fetchJson(birdApi('action=recent&hours=' + forHours))
+    loadingStart();
+    return fetchBirdJson(birdApi('action=recent&hours=' + forHours))
       .then(function (j) {
         if (forHours !== currentHours) return; // window changed mid-flight
         DATA.recent = j; renderWindowDependent(animate);
       })
-      .catch(function (e) { console.warn('recent fetch failed', e); });
+      .catch(function (e) { console.warn('recent fetch failed', e); })
+      .finally(loadingEnd);
   }
   function refreshAll(animate, force) {
     var forHours = currentHours;
     if (force) forceRefreshOnce = true;
+    loadingStart();
     return Promise.all([
-      fetchJson(birdApi('action=timeseries&days=30')).catch(function () { return null; }),
-      fetchJson(birdApi('action=recent&hours=' + forHours)).catch(function () { return null; }),
+      fetchBirdJson(birdApi('action=timeseries&days=30')).catch(function () { return null; }),
+      fetchBirdJson(birdApi('action=recent&hours=' + forHours)).catch(function () { return null; }),
     ]).then(function (parts) {
       forceRefreshOnce = false;
       DATA.timeseries = parts[0];
@@ -1301,7 +1376,7 @@
       recomputeDerived();
       renderTimeIndependent(animate);
       renderCollageFromData(animate);
-    }).finally(function () { forceRefreshOnce = false; });
+    }).finally(function () { forceRefreshOnce = false; loadingEnd(); });
   }
 
   // Kick off the initial fetch. Renders pull from DATA as soon as it

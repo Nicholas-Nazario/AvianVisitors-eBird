@@ -93,6 +93,35 @@
     text-decoration: underline; text-underline-offset: 3px;
     text-decoration-thickness: 1px;
   }
+  /* eBird loading state: a quiet overlay keeps the current collage in place
+     during refreshes while the wing gives the fetch a small bird-like pulse. */
+  .ebird-loading {
+    position: fixed; inset: 0; z-index: 20;
+    display: grid; place-items: center;
+    background: var(--paper);
+    background: color-mix(in srgb, var(--paper) 82%, transparent);
+    opacity: 0; pointer-events: none;
+    transition: opacity 220ms ease;
+  }
+  .ebird-loading.is-active { opacity: 1; }
+  .ebird-loader {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    color: var(--ink-2);
+    font: italic 13px/1.2 ui-serif, "Iowan Old Style", Georgia, serif;
+  }
+  .ebird-loader-bird {
+    width: 112px; height: 76px; object-fit: contain; display: block;
+    filter: brightness(0) saturate(100%) opacity(.72);
+    animation: ebird-float 900ms ease-in-out infinite alternate;
+  }
+  .ebird-loader-bird[hidden] { display: none; }
+  :root[data-theme="dark"] .ebird-loader-bird { filter: brightness(0) invert(1) opacity(.72); }
+  .ebird-loader-dots { display: inline-block; width: 20px; overflow: hidden; vertical-align: bottom; animation: ebird-dots 1.2s steps(4, end) infinite; }
+  @keyframes ebird-float { from { transform: translateY(2px) rotate(-1deg); } to { transform: translateY(-3px) rotate(1deg); } }
+  @keyframes ebird-dots { from { width: 0; } to { width: 20px; } }
+  @media (prefers-reduced-motion: reduce) {
+    .ebird-loader-bird, .ebird-loader-dots { animation: none; }
+  }
   .static-head.swap-out h1 { opacity: 0; }
   @media (max-width: 700px) {
     .static-head { padding: 70px 18px 12px; }
