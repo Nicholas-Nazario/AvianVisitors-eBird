@@ -31,6 +31,12 @@
       <button data-h="168" type="button">7D</button>
       <button data-h="336" type="button">14D</button>
       <button data-h="720" type="button">30D</button>
+      <button type="button" class="window-custom-btn" id="customWindowBtn" aria-expanded="false">Custom</button>
+    </div>
+    <div class="custom-window-popover" id="customWindowPopover" aria-hidden="true">
+      <label for="customWindowDays">days</label>
+      <input id="customWindowDays" type="number" min="1" max="30" step="1" inputmode="numeric" aria-label="Custom time window in days">
+      <button type="button" id="customWindowApply">Apply</button>
     </div>
     <button type="button" class="stats-help window-help" id="windowHelp" aria-label="How time windows work">?</button>
   </div>
@@ -264,7 +270,8 @@
     <h2 id="timeWindowHelpTitle">How the time selector works</h2>
     <div class="about-body">
       <p>The eBird recent-observations API accepts its <strong>back</strong> window in whole days. We request the broader day-based set, then use each observation's <strong>obsDt</strong> timestamp to filter it in our API.</p>
-      <p>We offer 24-hour, 7-day, 14-day, and 30-day windows. The API request covers the broader day-based range, then our API filters observations by timestamp.</p>
+      <p>Use the presets for 24-hour, 7-day, 14-day, or 30-day windows, or enter any whole number from 1 to 30 in the field beside 30D. The API request covers the broader day-based range, then our API filters observations by timestamp.</p>
+      <p>The eBird recent-observations endpoint provides at most 30 days of data, so 30 days is the maximum available window.</p>
       <p><a href="https://documenter.getpostman.com/view/664302/S1ENwy59#62b5ffb3-006e-4e8a-8e50-21d90d036edc" target="_blank" rel="noopener">Learn more about the eBird API →</a></p>
     </div>
   </div>

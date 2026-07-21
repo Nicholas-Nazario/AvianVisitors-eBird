@@ -39,7 +39,7 @@
     if (!container || container.__advanceWired) return;
     container.__advanceWired = true;
     container.addEventListener('click', function (ev) {
-      if (ev.target.closest('button')) return;   // a specific option was clicked
+      if (ev.target.closest('button, input, label')) return;   // a specific option was clicked
       var btns = [].slice.call(container.querySelectorAll('button')).filter(function (b) {
         return !b.disabled && b.getAttribute('data-unavailable') !== 'true';
       });
@@ -138,7 +138,11 @@
     return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
   }
   applyTheme(readLS('bird:theme', 'light'));
-  var winBtns = [].slice.call(winPick.querySelectorAll('button'));
+  var winBtns = [].slice.call(winPick.querySelectorAll('button[data-h]'));
+  var customWindowBtn = document.getElementById('customWindowBtn');
+  var customWindowPopover = document.getElementById('customWindowPopover');
+  var customWindowDays = document.getElementById('customWindowDays');
+  var customWindowApply = document.getElementById('customWindowApply');
   var DEFAULT_WINDOW_HOURS = 24;
   var currentHours = +readLS('bird:window', String(DEFAULT_WINDOW_HOURS)) || DEFAULT_WINDOW_HOURS;
   // Older builds used 1,000,000 hours for an unbounded "ALL" option.
@@ -146,20 +150,77 @@
   if (currentHours >= 1000000) currentHours = 30 * 24;
   // If a stale or unsupported value was persisted, start on the documented
   // default instead of leaving the picker with no active option.
-  if (!winBtns.some(function (b) { return +b.dataset.h === currentHours; })) {
+  if (!winBtns.some(function (b) { return +b.dataset.h === currentHours; }) &&
+      !(currentHours >= 24 && currentHours <= 720 && currentHours % 24 === 0)) {
     currentHours = DEFAULT_WINDOW_HOURS;
   }
-  winBtns.forEach(function (b) {
-    b.setAttribute('aria-current', (+b.dataset.h === currentHours) ? 'true' : 'false');
-  });
+  function setWindowSelection(hours) {
+    currentHours = hours;
+    winBtns.forEach(function (b) {
+      b.setAttribute('aria-current', (+b.dataset.h === currentHours) ? 'true' : 'false');
+    });
+    if (customWindowBtn) {
+      customWindowBtn.setAttribute('aria-current', !winBtns.some(function (b) {
+        return +b.dataset.h === currentHours;
+      }) ? 'true' : 'false');
+    }
+    if (customWindowDays) customWindowDays.value = String(currentHours / 24);
+    winPick.classList.toggle('has-custom', !winBtns.some(function (b) {
+      return +b.dataset.h === currentHours;
+    }));
+    writeLS('bird:window', String(currentHours));
+    syncPill(winPick);
+  }
+  setWindowSelection(currentHours);
   winBtns.forEach(function (b) {
     b.addEventListener('click', function () {
-      winBtns.forEach(function (x) { x.setAttribute('aria-current', x === b ? 'true' : 'false'); });
-      currentHours = +b.dataset.h;
-      writeLS('bird:window', String(currentHours));
-      syncPill(winPick);
+      setWindowSelection(+b.dataset.h);
       // Actual data refresh is wired below via refreshWindow().
     });
+  });
+  function closeCustomWindow() {
+    if (!customWindowPopover) return;
+    customWindowPopover.setAttribute('aria-hidden', 'true');
+    if (customWindowBtn) customWindowBtn.setAttribute('aria-expanded', 'false');
+  }
+  if (customWindowBtn && customWindowPopover) {
+    customWindowBtn.addEventListener('click', function () {
+      var isOpen = customWindowPopover.getAttribute('aria-hidden') === 'false';
+      if (isOpen) {
+        closeCustomWindow();
+        return;
+      }
+      customWindowDays.value = String(currentHours / 24);
+      customWindowPopover.setAttribute('aria-hidden', 'false');
+      customWindowBtn.setAttribute('aria-expanded', 'true');
+      customWindowDays.focus();
+      customWindowDays.select();
+    });
+  }
+  if (customWindowDays) {
+    function commitCustomWindow() {
+      var days = parseInt(customWindowDays.value, 10);
+      if (isNaN(days)) {
+        customWindowDays.value = String(currentHours / 24);
+        return;
+      }
+      days = Math.max(1, Math.min(30, days));
+      setWindowSelection(days * 24);
+      closeCustomWindow();
+      refreshWindow(true);
+    }
+    customWindowDays.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        commitCustomWindow();
+      }
+      if (ev.key === 'Escape') closeCustomWindow();
+    });
+    if (customWindowApply) customWindowApply.addEventListener('click', commitCustomWindow);
+  }
+  document.addEventListener('click', function (ev) {
+    if (customWindowPopover && customWindowPopover.getAttribute('aria-hidden') === 'false' &&
+        !ev.target.closest('#customWindowPopover, #customWindowBtn')) closeCustomWindow();
   });
 
   // Initial pill placement (after layout settles) + on resize.
@@ -876,6 +937,7 @@
   // the winPick buttons (24H / 7D / 14D / 30D).
   function windowLabel(h) {
     if (h <= 24) return 'today';
+    if (h < 168) return 'past ' + Math.round(h / 24) + 'd';
     if (h <= 168) return 'this week';
     if (h <= 336) return 'past 14d';
     return 'past 30d';

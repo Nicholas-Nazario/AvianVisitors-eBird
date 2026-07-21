@@ -156,7 +156,7 @@
     padding: 0 28px; z-index: 30; pointer-events: none;
   }
   .top > * { pointer-events: auto; }
-  .window-controls { display: inline-flex; align-items: center; gap: 7px; }
+  .window-controls { position: relative; display: inline-flex; align-items: center; gap: 7px; }
   .top .window-pick {
     display: inline-flex; gap: 0; padding: 4px;
     background: var(--paper-2); border-radius: 999px;
@@ -172,6 +172,24 @@
   }
   .top .window-pick button:hover { color: var(--ink); }
   .top .window-pick button[aria-current="true"] { color: var(--ink); }
+  .window-custom-btn[aria-current="true"] { color: var(--ink); }
+  .custom-window-popover {
+    position: absolute; top: calc(100% + 10px); left: 0; z-index: 35;
+    display: flex; align-items: center; gap: 8px; padding: 10px 11px;
+    border-radius: 8px; background: var(--paper); box-shadow: var(--raised);
+    color: var(--ink-soft); font: 10px/1 ui-monospace, Menlo, monospace;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .custom-window-popover[aria-hidden="true"] { display: none; }
+  .custom-window-popover input {
+    width: 36px; padding: 5px 3px; border: 0; border-bottom: 1px solid var(--ink-soft);
+    background: transparent; color: var(--ink); font: inherit; text-align: center; outline: none;
+  }
+  .custom-window-popover input:focus { border-bottom-color: var(--ink); }
+  .custom-window-popover button {
+    padding: 5px 7px; border: 0; border-radius: 4px; background: var(--ink);
+    color: var(--paper); font: inherit; letter-spacing: 0.06em; cursor: pointer;
+  }
   .menu-actions { display: inline-flex; align-items: center; gap: 7px; }
   .location-action { position: relative; display: inline-flex; }
   .location-nudge {
@@ -208,6 +226,7 @@
     .top .window-pick button {
       font-size: 8.5px; padding: 6px 10px; letter-spacing: 0.12em;
     }
+    .custom-window-popover { top: calc(100% + 7px); }
     .menu-actions { gap: 5px; }
     .menu-btn { width: 31px; height: 31px; padding: 6px; }
     .menu-btn svg { width: 19px; height: 19px; }
@@ -215,6 +234,7 @@
   }
   @media (max-width: 420px) {
     .top .window-pick button { font-size: 8px; padding: 5px 7px; letter-spacing: 0.08em; }
+    .custom-window-popover { left: auto; right: 0; }
   }
 
   /* ============ Bottom slider - recessed track, raised active pill ============ */
