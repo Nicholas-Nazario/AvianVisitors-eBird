@@ -1516,7 +1516,7 @@
   });
 
   // Render the unlocked drawer: eBird location + poll controls.
-  function renderMenu(menu) {
+  function renderMenu(menu, sourcePillOrigin) {
     locationLocked.style.display = 'none';
     refreshLocked.style.display = 'none';
     locationItems.classList.add('show');
@@ -1635,6 +1635,24 @@
     var findHotspotsBtn = document.getElementById('findHotspots');
     var locationHelpBtn = document.getElementById('locationHelp');
     var locationHelpModal = document.getElementById('location-help-modal');
+
+    // The source picker is rebuilt when switching between distance and
+    // hotspot, unlike the refresh picker which updates in place. Prime the
+    // new pill at the previously selected option so its transition starts
+    // from the old state instead of from the left edge of the control.
+    if (sourceSeg && sourcePillOrigin) {
+      var originBtn = [].slice.call(sourceSeg.querySelectorAll('button[data-source]')).find(function (b) {
+        return b.dataset.source === sourcePillOrigin;
+      });
+      var sourcePill = sourceSeg.querySelector('.seg-pill');
+      if (originBtn && sourcePill) {
+        sourcePill.style.transition = 'none';
+        sourcePill.style.width = originBtn.offsetWidth + 'px';
+        sourcePill.style.transform = 'translateX(' + originBtn.offsetLeft + 'px)';
+        void sourcePill.offsetWidth;
+        sourcePill.style.transition = '';
+      }
+    }
 
     if (locationHelpBtn) locationHelpBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -1791,10 +1809,11 @@
         ev.stopPropagation();
         var btn = ev.target.closest('button[data-source]');
         if (!btn || btn.dataset.source === GEO.mode) return;
+        var previousSource = GEO.mode;
         GEO.mode = btn.dataset.source;
         saveGeo();
         updateLocationSubtitle();
-        renderMenu(menu);
+        renderMenu(menu, previousSource);
         if (GEO.mode === 'geo') refreshAll(true, true);
       });
     }

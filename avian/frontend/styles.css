@@ -518,7 +518,8 @@
     font: 9.5px ui-monospace, Menlo, monospace;
   }
   .menu-geo .menu-row .seg {
-    flex-wrap: wrap; justify-content: flex-end; max-width: 100%;
+    width: 100%; box-sizing: border-box;
+    flex-wrap: wrap; justify-content: stretch; max-width: 100%;
   }
   .menu-geo .menu-row:has(.seg) {
     grid-template-columns: 1fr;
@@ -526,6 +527,7 @@
     align-items: start;
   }
   .menu-geo .menu-row .seg button {
+    flex: 1 1 0; justify-content: center;
     padding: 6px 8px; letter-spacing: 0.08em;
   }
   .menu-geo .hotspot-row {
