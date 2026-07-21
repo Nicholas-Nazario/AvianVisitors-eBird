@@ -1269,12 +1269,12 @@
   function renderStatsLists() {
     var recent = DATA.recent || { species: [] };
 
-    // Top Species - top 5 species in the current window.
+    // Top Species - top 10 species in the current window.
     // already returns species sorted by last_observed DESC; re-sort by count.
     var ranked = (recent.species || [])
       .slice()
       .sort(function (a, b) { return (+b.n) - (+a.n); })
-      .slice(0, 5);
+      .slice(0, 10);
     document.getElementById('statsTopSpec').innerHTML = ranked.length
       ? ranked.map(function (s, i) { return liRow(pad(i + 1), s.com, fmtN(+s.n), s.sci); }).join('')
       : liRow('-', 'no observations in window', '');
