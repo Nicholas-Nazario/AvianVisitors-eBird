@@ -1499,6 +1499,10 @@
       + '      <label class="geo-field"><span class="label">Longitude</span>'
       + '        <input id="geoLng" type="number" step="any" inputmode="decimal" value="' + GEO.lng + '">'
       + '      </label>'
+      + '      <button type="button" class="geo-locate" id="geoLocate" aria-label="Use my current location" title="Use my current location">'
+      + '        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>'
+      + '      </button>'
+      + '      <span class="geo-location-status" id="geoLocationStatus" role="status" aria-live="polite"></span>'
       + '    </div>'
       + '    <div class="slider-row">'
       + '      <div class="head">'
@@ -1541,6 +1545,8 @@
 
     var latIn = document.getElementById('geoLat');
     var lngIn = document.getElementById('geoLng');
+    var locateBtn = document.getElementById('geoLocate');
+    var locationStatus = document.getElementById('geoLocationStatus');
     var distIn = document.getElementById('geoDist');
     var distVal = document.getElementById('geoDistVal');
     var statusEl = document.getElementById('geoStatus');
@@ -1562,6 +1568,9 @@
 
     function setStatus(msg) {
       if (statusEl) statusEl.textContent = msg || '';
+    }
+    function setLocationStatus(msg) {
+      if (locationStatus) locationStatus.textContent = msg || '';
     }
     function applyGeo(opts) {
       opts = opts || {};
@@ -1671,6 +1680,35 @@
     [latIn, lngIn, distIn].forEach(function (el) {
       el.addEventListener('click', function (ev) { ev.stopPropagation(); });
     });
+    if (locateBtn) {
+      locateBtn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        if (!navigator.geolocation) {
+          setLocationStatus('location unavailable in this browser');
+          return;
+        }
+        locateBtn.disabled = true;
+        locateBtn.setAttribute('aria-busy', 'true');
+        setLocationStatus('finding location…');
+        navigator.geolocation.getCurrentPosition(function (position) {
+          latIn.value = position.coords.latitude.toFixed(6);
+          lngIn.value = position.coords.longitude.toFixed(6);
+          setLocationStatus('location found');
+          applyGeo();
+          locateBtn.disabled = false;
+          locateBtn.removeAttribute('aria-busy');
+        }, function (error) {
+          var message = error.code === error.PERMISSION_DENIED
+            ? 'location permission denied'
+            : error.code === error.TIMEOUT
+              ? 'location request timed out'
+              : 'could not get location';
+          setLocationStatus(message);
+          locateBtn.disabled = false;
+          locateBtn.removeAttribute('aria-busy');
+        }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+      });
+    }
 
     if (sourceSeg) {
       syncPill(sourceSeg);

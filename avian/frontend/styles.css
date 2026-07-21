@@ -452,7 +452,7 @@
   .menu-geo .menu-section:first-child { margin-top: 0; }
   .menu-row.geo-coords {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     gap: 10px;
     align-items: stretch;
     padding: 4px 6px 10px 10px;
@@ -475,6 +475,19 @@
     font-variant-numeric: tabular-nums;
   }
   .geo-field input:focus { outline: 1px solid var(--ink-soft); }
+  .geo-locate {
+    align-self: end; width: 34px; height: 34px; padding: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--paper); border: 0; border-radius: 6px;
+    box-shadow: var(--raised); color: var(--ink); cursor: pointer;
+  }
+  .geo-locate svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .geo-locate:hover { color: var(--accent); }
+  .geo-locate:disabled { opacity: .5; cursor: wait; }
+  .geo-location-status {
+    grid-column: 1 / -1; min-height: 1em; color: var(--ink-soft);
+    font: 9.5px ui-monospace, Menlo, monospace;
+  }
   .menu-geo .menu-row .seg {
     flex-wrap: wrap; justify-content: flex-end; max-width: 100%;
   }
