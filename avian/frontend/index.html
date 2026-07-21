@@ -27,12 +27,9 @@
   <div class="window-controls">
     <div class="window-pick" id="winPick" role="tablist">
       <i class="seg-pill" aria-hidden="true"></i>
-      <button data-h="1"   type="button">1H</button>
-      <button data-h="3"   type="button">3H</button>
-      <button data-h="6"   type="button">6H</button>
-      <button data-h="12"  type="button">12H</button>
       <button data-h="24"  type="button" aria-current="true">24H</button>
       <button data-h="168" type="button">7D</button>
+      <button data-h="336" type="button">14D</button>
       <button data-h="720" type="button">30D</button>
     </div>
     <button type="button" class="stats-help window-help" id="windowHelp" aria-label="How time windows work">?</button>
@@ -246,7 +243,7 @@
     <h2 id="timeWindowHelpTitle">How the time selector works</h2>
     <div class="about-body">
       <p>The eBird recent-observations API accepts its <strong>back</strong> window in whole days. We request the broader day-based set, then use each observation's <strong>obsDt</strong> timestamp to filter it in our API.</p>
-      <p>That lets the 1H, 3H, 6H, and 12H options show sub-day windows even though eBird's request parameter has day granularity.</p>
+      <p>We offer 24-hour, 7-day, 14-day, and 30-day windows. The API request covers the broader day-based range, then our API filters observations by timestamp.</p>
       <p><a href="https://documenter.getpostman.com/view/664302/S1ENwy59#62b5ffb3-006e-4e8a-8e50-21d90d036edc" target="_blank" rel="noopener">Learn more about the eBird API →</a></p>
     </div>
   </div>

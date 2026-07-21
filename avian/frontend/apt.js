@@ -859,14 +859,11 @@
   }
   // Human label for the current time-window picker selection - replaces
   // a bare "window" with the span it actually covers. Thresholds match
-  // the winPick buttons (1H / 3H / 6H / 12H / 24H / 7D / 30D).
+  // the winPick buttons (24H / 7D / 14D / 30D).
   function windowLabel(h) {
-    if (h <= 1) return 'this hour';
-    if (h <= 3) return 'past 3h';
-    if (h <= 6) return 'past 6h';
-    if (h <= 12) return 'past 12h';
     if (h <= 24) return 'today';
     if (h <= 168) return 'this week';
+    if (h <= 336) return 'past 14d';
     return 'past 30d';
   }
 
