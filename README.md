@@ -22,7 +22,7 @@ Alias: `alias avian='/Users/nicholasnazario/src/AvianVisitors-eBird/serve.sh'`
 
 Default query: Central Park area (`lat`/`lng`/`dist` in `avian/data/ebird.json`).
 
-Hotspot mode accepts one or more repeated hotspot IDs, up to five:
+Hotspot mode accepts one or more repeated hotspot IDs, up to ten:
 `?action=dashboard&mode=hotspot&regionCode[]=L123456&regionCode[]=L654321`.
 Duplicate IDs are collapsed. The API batches the selected hotspot IDs into one
 eBird request, then combines observations before producing both dashboard
@@ -58,7 +58,7 @@ with the new `hours` value.
 | **`species&sci=...`** | One species summary and up to 500 observations | Populates the species detail view. |
 
 In hotspot mode, `dashboard` and `species` requests require at least one
-`regionCode`; invalid IDs or more than five unique IDs return `400`. Duplicate
+`regionCode`; invalid IDs or more than ten unique IDs return `400`. Duplicate
 IDs are collapsed. If an upstream observation request fails, a still-available
 stale cache is used; otherwise the request fails rather than returning partial
 data. The `refresh=1` query parameter bypasses a fresh observation cache and

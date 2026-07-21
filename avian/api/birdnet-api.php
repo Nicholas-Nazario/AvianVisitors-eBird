@@ -65,9 +65,9 @@ if ($mode === 'hotspot' && !$regionCodes && $action !== 'hotspots') {
     echo json_encode(['error' => 'at least one regionCode is required for hotspot mode']);
     exit;
 }
-if (count($regionCodes) > 5) {
+if (count($regionCodes) > 10) {
     http_response_code(400);
-    echo json_encode(['error' => 'at most five regionCode values are allowed']);
+    echo json_encode(['error' => 'at most ten regionCode values are allowed']);
     exit;
 }
 $forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';

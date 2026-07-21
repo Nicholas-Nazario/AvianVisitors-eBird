@@ -473,8 +473,11 @@
     font: 11px ui-monospace, Menlo, monospace;
     color: var(--ink); font-variant-numeric: tabular-nums;
     background: var(--paper-2); padding: 3px 10px; border-radius: 4px;
-    box-shadow: var(--recess);
-    min-width: 48px; text-align: center;
+    box-shadow: var(--recess); border: 0;
+    width: 58px; min-width: 58px; text-align: center;
+  }
+  .slider-row input.value:focus {
+    outline: 1px solid var(--ink-soft);
   }
   .slider-row .slider-track {
     margin-top: 2px;
@@ -587,24 +590,32 @@
   .menu-geo .hotspot-row .label-block { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .menu-geo .hotspot-row .label-block .hint { flex: 1; }
   .menu-geo .hotspot-picker { min-width: 0; position: relative; grid-column: 1 / -1; width: 100%; }
-  .menu-geo .hotspot-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 5px; }
-  .menu-geo .hotspot-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 5px 7px; border-radius: 5px; background: var(--paper-2); box-shadow: var(--recess); font: 10px ui-monospace, Menlo, monospace; }
-  .menu-geo .hotspot-chip button { padding: 0 2px; background: transparent; box-shadow: none; font-size: 14px; line-height: 1; }
-  .menu-geo #hotspotSearch { min-width: 0; width: 100%; box-sizing: border-box; background: var(--paper-2); border: 0; border-radius: 6px; box-shadow: var(--recess); color: var(--ink); padding: 8px 10px; font: 11px ui-monospace, Menlo, monospace; }
-  .menu-geo .hotspot-count, .menu-geo .hotspot-empty { display: block; padding: 5px 2px; color: var(--ink-soft); font: 9px ui-monospace, Menlo, monospace; }
-  .menu-geo .hotspot-results { position: absolute; z-index: 3; left: 0; right: 0; max-height: 360px; overflow-y: auto; background: var(--paper); border-radius: 6px; box-shadow: var(--raised); }
-  .menu-geo .hotspot-results button { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; font: 10px ui-monospace, Menlo, monospace; }
-  .menu-geo .hotspot-results button:hover, .menu-geo .hotspot-results button[aria-selected="true"] { background: var(--paper-2); }
-  .menu-geo .hotspot-results button:disabled { opacity: .45; cursor: not-allowed; }
+  .menu-geo .hotspot-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .menu-geo .hotspot-search-wrap { position: relative; }
+  .menu-geo #hotspotSearch { min-width: 0; width: 100%; box-sizing: border-box; background: var(--paper-2); border: 0; border-radius: 6px; box-shadow: var(--recess); color: var(--ink); padding: 10px; font: 11px ui-monospace, Menlo, monospace; }
+  .menu-geo #hotspotSearch:focus { outline: 1px solid var(--ink-soft); }
+  .menu-geo .hotspot-count, .menu-geo .hotspot-empty { display: block; padding: 3px 2px; color: var(--ink-soft); font: 9px ui-monospace, Menlo, monospace; }
+  .menu-geo .hotspot-clear { border: 0; padding: 3px 2px; background: transparent; color: var(--ink-soft); cursor: pointer; font: 9px ui-monospace, Menlo, monospace; }
+  .menu-geo .hotspot-clear:hover { color: var(--accent); }
+  .menu-geo .hotspot-results { display: none; position: absolute; z-index: 3; left: 0; right: 0; top: calc(100% + 5px); max-height: 280px; overflow-y: auto; background: var(--paper); border-radius: 6px; box-shadow: var(--raised); }
+  .menu-geo .hotspot-picker.is-searching .hotspot-results { display: block; }
+  .menu-geo .hotspot-results .hotspot-option { display: flex; align-items: flex-start; gap: 9px; width: 100%; padding: 8px 10px; color: var(--ink); cursor: pointer; font: 10px ui-monospace, Menlo, monospace; }
+  .menu-geo .hotspot-results .hotspot-option:hover, .menu-geo .hotspot-results .hotspot-option[aria-selected="true"] { background: var(--paper-2); }
+  .menu-geo .hotspot-results .hotspot-option[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+  .menu-geo .hotspot-results .hotspot-option input { flex: 0 0 auto; width: 14px; height: 14px; margin: 0; accent-color: var(--ink); }
+  .menu-geo .hotspot-results .hotspot-option span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .menu-geo .hotspot-results small { display: block; color: var(--ink-soft); margin-top: 2px; }
-  .menu-geo .hotspot-row #findHotspots {
-    background: var(--paper); border: 0; color: var(--ink);
-    padding: 8px 10px; border-radius: 6px;
-    font: 9px ui-monospace, Menlo, monospace;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    box-shadow: var(--raised); cursor: pointer;
+  .menu-geo .hotspot-row .hotspot-refresh {
+    flex: 0 0 auto; width: 27px; height: 27px; padding: 5px;
+    background: transparent; border: 0; border-radius: 999px;
+    color: var(--ink-soft); cursor: pointer;
   }
-  .menu-geo .hotspot-row #findHotspots:disabled { opacity: 0.5; cursor: default; }
+  .menu-geo .hotspot-refresh svg {
+    display: block; width: 100%; height: 100%; fill: none;
+    stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .menu-geo .hotspot-refresh:hover { color: var(--ink); background: var(--paper-2); }
+  .menu-geo .hotspot-row #findHotspots:disabled { opacity: 0.45; cursor: wait; }
   .menu-geo .menu-save-row {
     display: flex; align-items: center; justify-content: space-between;
     gap: 12px; padding: 8px 6px 4px 10px;
