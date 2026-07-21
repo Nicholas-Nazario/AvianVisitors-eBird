@@ -266,6 +266,27 @@
   }
   .about-project a { color: inherit; text-underline-offset: 2px; }
   .about-project a:hover { color: var(--accent); }
+  .info-contributing {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--hairline);
+    color: var(--ink);
+    font: 14px/1.5 ui-serif, Georgia, serif;
+  }
+  .info-contributing h4 {
+    margin: 0 0 8px;
+    font: 700 15px/1.25 ui-serif, Georgia, serif;
+  }
+  .info-contributing p { margin: 0; }
+  .info-contributing p + p { margin-top: 10px; }
+  .info-contributing a { color: inherit; text-underline-offset: 2px; }
+  .info-contributing a:hover { color: var(--accent); }
+  .info-contributing code {
+    padding: 2px 4px;
+    border-radius: 3px;
+    background: rgba(90, 122, 58, 0.1);
+    font: 11px ui-monospace, Menlo, monospace;
+  }
   .info-dd .built-by { margin-top: 14px; white-space: nowrap; }
 
   .lock-row {
@@ -1415,6 +1436,7 @@
     position: fixed; inset: 0; z-index: 60;
     display: flex; align-items: center; justify-content: center;
     padding: 24px;
+    overflow-y: auto;
     pointer-events: none; opacity: 0;
     transition: opacity 200ms ease;
   }
