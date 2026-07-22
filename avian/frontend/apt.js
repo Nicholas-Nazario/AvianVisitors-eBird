@@ -943,6 +943,65 @@
     return 'past 30d';
   }
 
+  var artworkProbeSerial = 0;
+  var needIdeasExpanded = false;
+  var needIdeasResults = null;
+  function renderNeedIdeasTable(el, missing) {
+    if (!missing.length) {
+      el.innerHTML = '<li class="info-ideas-empty">all observed species have artwork</li>';
+      return;
+    }
+    var visible = needIdeasExpanded ? missing : missing.slice(0, 10);
+    el.innerHTML = visible.map(function (r, i) {
+          var s = r.species;
+          var name = statsEsc(s.com || s.sci);
+          var href = statsEsc(ebirdUrl(s.sci, s.speciesCode));
+          return '<li><span class="yr">' + pad(i + 1) + '</span>'
+            + '<a href="' + href + '" target="_blank" rel="noopener">' + name + '</a>'
+            + '<span class="ct">' + fmtN(+s.n) + '</span></li>';
+        }).join('');
+    if (missing.length > 10) {
+      var more = document.createElement('li');
+      more.className = 'info-ideas-more';
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = needIdeasExpanded ? 'show less' : 'show all (' + missing.length + ')';
+      button.addEventListener('click', function (ev) {
+        // The menu's document-level click-away handler runs after this
+        // listener. Keep the drawer open while replacing the table.
+        ev.stopPropagation();
+        needIdeasExpanded = !needIdeasExpanded;
+        renderNeedIdeasTable(el, needIdeasResults);
+      });
+      more.appendChild(button);
+      el.appendChild(more);
+    }
+  }
+  function renderNeedIdeas() {
+    var el = document.getElementById('infoNeedIdeas');
+    if (!el) return;
+    var species = ((DATA.recent && DATA.recent.species) || []).slice()
+      .sort(function (a, b) { return (+b.n || 0) - (+a.n || 0); });
+    var serial = ++artworkProbeSerial;
+
+    if (!species.length) {
+      needIdeasResults = null;
+      el.innerHTML = '<li class="info-ideas-empty">no observations in window</li>';
+      return;
+    }
+    el.innerHTML = '<li class="info-ideas-empty">checking artwork...</li>';
+
+    Promise.all(species.map(function (s) {
+      return fetch(sketchSrc(s.sci, 1), { method: 'HEAD', cache: 'no-store' })
+        .then(function (r) { return { species: s, hasArtwork: r.ok }; })
+        .catch(function () { return { species: s, hasArtwork: false }; });
+    })).then(function (results) {
+      if (serial !== artworkProbeSerial) return;
+      needIdeasResults = results.filter(function (r) { return !r.hasArtwork; });
+      renderNeedIdeasTable(el, needIdeasResults);
+    });
+  }
+
   // ---- eBird query prefs (menu drawer) ----
   // Persisted in localStorage; sent as query params on every birdnet-api call.
   var MAX_HOTSPOTS = 10;
@@ -1280,6 +1339,8 @@
       : liRow('-', 'no observations in window', '');
     document.getElementById('statsTopSpecCap').textContent =
       'most-observed, ' + windowLabel(currentHours);
+    needIdeasExpanded = false;
+    renderNeedIdeas();
 
     var hotspots = (recent.hotspots || []).slice();
     var hotspotEl = document.getElementById('statsHotspots');
