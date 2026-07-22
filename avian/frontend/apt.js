@@ -59,9 +59,8 @@
   var winPick = document.getElementById('winPick');
 
   // Each view's title text. The shared static-head shows one of these
-  // based on the current view; identical adjacent values mean the title
-  // stays put with no fade (collage and stats both say Observed Recently).
-  var VIEW_TITLES = ['Observed Recently', 'Observed Recently', 'Avian Visitors'];
+  // based on the current view.
+  var VIEW_TITLES = ['Observed Recently', 'By the Numbers', 'A Field Guide'];
   var staticHead = document.querySelector('.static-head');
   var staticTitle = document.getElementById('staticTitle');
   var staticLocation = document.getElementById('staticLocation');
