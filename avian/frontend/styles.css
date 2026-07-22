@@ -395,6 +395,16 @@
   }
   .info-dd .built-by { margin-top: 14px; white-space: nowrap; }
 
+  .refresh-countdown {
+    margin: 0;
+    color: var(--ink-soft);
+    font: 11px ui-monospace, Menlo, monospace;
+    letter-spacing: 0.04em;
+    text-align: left;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
   @media (max-width: 700px) {
     .menu-dd { padding: 26px 20px 30px; border-radius: 14px 0 0 14px; }
     #info-dd { padding-top: 70px; }

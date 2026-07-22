@@ -48,7 +48,7 @@ eBird `sciName` → illustration slug (`Branta canadensis` → `branta-canadensi
 
 The collage frontend requests `dashboard` on page load, when the selected
 location or mode changes, and whenever the selected refresh interval fires
-(1m, 5m, 15m, 1h, or 1d). Changing the time window also requests `dashboard`
+(1m, 5m, 15m, or 1h). Changing the time window also requests `dashboard`
 with the new `hours` value.
 
 | Call | What it returns | What the UI uses it for |

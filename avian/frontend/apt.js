@@ -1011,7 +1011,6 @@
     { label: '5m', ms: 5 * 60 * 1000 },
     { label: '15m', ms: 15 * 60 * 1000 },
     { label: '1h', ms: 60 * 60 * 1000 },
-    { label: '1d', ms: 24 * 60 * 60 * 1000 },
   ];
   function loadGeo() {
     var dist = parseInt(readLS('bird:dist', String(GEO_DEFAULTS.dist)), 10);
@@ -1542,24 +1541,76 @@
   });
 
   // ---- Realtime polling ----
-  // Interval comes from the menu refresh selector (1m / 5m / 15m / 1h / 1d).
-  // Polling pauses when the tab is hidden and resumes (with an immediate
-  // fetch) when it becomes visible again.
+  // Interval comes from the menu refresh selector (1m / 5m / 15m / 1h).
+  // Polling pauses when the tab is hidden and resumes when it becomes visible
+  // again, preserving the countdown for short visits to another tab.
   var pollTimer = null;
-  function startPolling() {
-    stopPolling();
-    pollTimer = setInterval(function () {
-      if (document.hidden) return;
-      refreshAll();
-    }, GEO.refreshMs);
+  var refreshCountdownTimer = null;
+  var nextRefreshAt = null;
+  function formatCountdown(ms) {
+    var totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+    var minutes = Math.floor(totalSeconds / 60);
+    var seconds = totalSeconds % 60;
+    return minutes + ':' + String(seconds).padStart(2, '0');
   }
-  function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+  function updateRefreshCountdown() {
+    var el = document.getElementById('geoNextRefresh');
+    if (!el) return;
+    if (document.hidden || nextRefreshAt === null) {
+      el.textContent = 'next refresh paused';
+      return;
+    }
+    el.textContent = 'next refresh in ' + formatCountdown(nextRefreshAt - Date.now());
+  }
+  function startRefreshCountdown() {
+    if (refreshCountdownTimer) return;
+    refreshCountdownTimer = setInterval(updateRefreshCountdown, 1000);
+  }
+  function pollNow() {
+    if (document.hidden) return;
+    nextRefreshAt = Date.now() + GEO.refreshMs;
+    updateRefreshCountdown();
+    refreshAll();
+  }
+  function startPolling(delayMs) {
+    stopPolling();
+    var delay = typeof delayMs === 'number' ? Math.max(0, delayMs) : GEO.refreshMs;
+    nextRefreshAt = Date.now() + delay;
+    startRefreshCountdown();
+    updateRefreshCountdown();
+    pollTimer = setTimeout(function () {
+      pollNow();
+      pollTimer = setInterval(pollNow, GEO.refreshMs);
+    }, delay);
+  }
+  function stopPolling() {
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    nextRefreshAt = null;
+    updateRefreshCountdown();
+  }
+  var hiddenSince = null;
+  var pausedRefreshRemaining = null;
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
+      hiddenSince = Date.now();
+      pausedRefreshRemaining = nextRefreshAt === null
+        ? null
+        : Math.max(0, nextRefreshAt - Date.now());
       stopPolling();
     } else {
-      refreshAll();
-      startPolling();
+      var hiddenFor = hiddenSince === null ? 0 : Date.now() - hiddenSince;
+      hiddenSince = null;
+      // A short visit to another tab should not cause a full reload. When
+      // the page has been hidden at least as long as the configured refresh
+      // interval, catch up immediately before restarting the timer.
+      if (hiddenFor >= GEO.refreshMs) refreshAll();
+      var resumeDelay = hiddenFor < GEO.refreshMs ? pausedRefreshRemaining : null;
+      pausedRefreshRemaining = null;
+      startPolling(resumeDelay);
     }
   });
   startPolling();
@@ -1772,12 +1823,14 @@
       + '    </div>'
       + '    <div class="menu-save-row">'
       + '      <span class="save-state" id="geoStatus"></span>'
+      + '      <span class="refresh-countdown" id="geoNextRefresh" aria-live="polite"></span>'
       + '      <button type="button" id="geoRefreshBtn">refresh now</button>'
       + '    </div>'
       + '  </div>'
       + '</div>'
       + (linksHtml ? '<div class="menu-links">' + linksHtml + '</div>' : '')
       + '</div>';
+    updateRefreshCountdown();
 
     var menuLinks = refreshItems.querySelector('.menu-links');
     if (menuLinks) menuLinks.addEventListener('click', function (ev) {
@@ -1862,8 +1915,7 @@
       }
       updateLocationSubtitle();
       if (opts.refresh !== false) {
-        setStatus('updating…');
-        refreshAll(true, true).then(function () { setStatus('updated'); });
+        refreshAll(true, true);
       }
       return true;
     }
@@ -1954,8 +2006,7 @@
         setStatus('select a hotspot');
         return;
       }
-      setStatus('updating…');
-      refreshAll(true, true).then(function () { setStatus('updated'); });
+      refreshAll(true, true);
     }
 
       distIn.addEventListener('input', function () {
@@ -2109,17 +2160,15 @@
         syncPill(refreshSeg);
         saveGeo();
         startPolling();
-        setStatus('auto refresh set');
       });
     }
 
     refreshBtn.addEventListener('click', function (ev) {
       ev.stopPropagation();
       applyGeo({ refresh: false });
-      setStatus('refreshing…');
+      startPolling();
       refreshBtn.disabled = true;
       refreshAll(true, true).then(function () {
-        setStatus('updated');
         refreshBtn.disabled = false;
       }).catch(function () {
         setStatus('refresh failed');
