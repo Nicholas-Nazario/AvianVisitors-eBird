@@ -352,8 +352,17 @@ function aggregate_species(array $obs): array {
     return $list;
 }
 
-/** Group observation rows by hotspot, then by species within each hotspot. */
-function aggregate_hotspots(array $obs): array {
+function geo_distance_km(float $latA, float $lngA, float $latB, float $lngB): float {
+    $earthRadiusKm = 6371.0088;
+    $latDelta = deg2rad($latB - $latA);
+    $lngDelta = deg2rad($lngB - $lngA);
+    $a = sin($latDelta / 2) ** 2
+        + cos(deg2rad($latA)) * cos(deg2rad($latB)) * sin($lngDelta / 2) ** 2;
+    return $earthRadiusKm * 2 * atan2(sqrt($a), sqrt(max(0.0, 1 - $a)));
+}
+
+/** Group observation rows by hotspot, then order hotspots nearest-first. */
+function aggregate_hotspots(array $obs, float $originLat, float $originLng): array {
     $by = [];
     foreach ($obs as $row) {
         if (!is_array($row)) continue;
@@ -366,11 +375,15 @@ function aggregate_hotspots(array $obs): array {
         $com = trim((string)($row['comName'] ?? $sci));
         $n = isset($row['howMany']) ? max(1, (int)$row['howMany']) : 1;
         $dt = (string)($row['obsDt'] ?? '');
+        $lat = isset($row['lat']) && is_numeric($row['lat']) ? (float)$row['lat'] : null;
+        $lng = isset($row['lng']) && is_numeric($row['lng']) ? (float)$row['lng'] : null;
 
         if (!isset($by[$key])) {
             $by[$key] = [
                 'locId' => $locId !== '' ? $locId : null,
                 'locName' => $locName !== '' ? $locName : $key,
+                'lat' => $lat,
+                'lng' => $lng,
                 'n' => 0,
                 'last_observed' => $dt,
                 'species' => [],
@@ -378,6 +391,8 @@ function aggregate_hotspots(array $obs): array {
         }
         $by[$key]['n'] += $n;
         if ($locName !== '') $by[$key]['locName'] = $locName;
+        if ($by[$key]['lat'] === null && $lat !== null) $by[$key]['lat'] = $lat;
+        if ($by[$key]['lng'] === null && $lng !== null) $by[$key]['lng'] = $lng;
         if ($dt !== '' && ($by[$key]['last_observed'] === '' || strcmp($dt, $by[$key]['last_observed']) > 0)) {
             $by[$key]['last_observed'] = $dt;
         }
@@ -398,6 +413,9 @@ function aggregate_hotspots(array $obs): array {
 
     foreach ($by as &$hotspot) {
         $hotspot['species'] = array_values($hotspot['species']);
+        $hotspot['distance_km'] = $hotspot['lat'] !== null && $hotspot['lng'] !== null
+            ? geo_distance_km($originLat, $originLng, $hotspot['lat'], $hotspot['lng'])
+            : null;
         usort($hotspot['species'], function ($a, $b) {
             return ($b['n'] <=> $a['n']) ?: strcmp($b['last_observed'], $a['last_observed']);
         });
@@ -405,6 +423,14 @@ function aggregate_hotspots(array $obs): array {
     unset($hotspot);
     $list = array_values($by);
     usort($list, function ($a, $b) {
+        $aDistance = $a['distance_km'];
+        $bDistance = $b['distance_km'];
+        if ($aDistance === null && $bDistance !== null) return 1;
+        if ($aDistance !== null && $bDistance === null) return -1;
+        if ($aDistance !== null && $bDistance !== null) {
+            $byDistance = $aDistance <=> $bDistance;
+            if ($byDistance !== 0) return $byDistance;
+        }
         return strcmp($b['last_observed'], $a['last_observed']);
     });
     return $list;
@@ -496,7 +522,11 @@ switch ($action) {
         $recent = [
             'hours' => $hours,
             'species' => aggregate_species(filter_by_hours($allObs, $windowHours)),
-            'hotspots' => aggregate_hotspots(filter_by_hours($allObs, $windowHours)),
+            'hotspots' => aggregate_hotspots(
+                filter_by_hours($allObs, $windowHours),
+                (float)$config['lat'],
+                (float)$config['lng']
+            ),
             'as_of' => $asOf,
             'source' => 'ebird',
         ];

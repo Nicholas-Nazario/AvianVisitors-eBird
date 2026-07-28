@@ -926,6 +926,11 @@
     if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
     return n.toLocaleString();
   }
+  function fmtDistanceKm(distance) {
+    if (distance == null || !isFinite(+distance)) return 'distance unavailable';
+    var km = Math.max(0, +distance);
+    return (km < 0.1 ? '<0.1' : km.toFixed(1)) + ' km away';
+  }
   // Compact count for atlas cards (1K, 1.2K); the modal keeps the exact number.
   function fmtNK(n) {
     if (n == null) return '-';
@@ -1351,15 +1356,18 @@
               return '<tr><td>' + statsEsc(s.com || s.sci) + '</td><td>' + fmtN(+s.n)
                 + '</td><td aria-label="' + statsEsc(observed) + '">' + statsEsc(observedCompact) + '</td></tr>';
             }).join('');
+            var speciesCount = (h.species || []).length;
             return '<section class="stats-hotspot"><h4>' + statsEsc(h.locName || h.locId || 'unknown hotspot')
-              + '</h4><small>' + fmtN(+h.n) + ' birds · last ' + statsEsc(relativeObservationTime(h.last_observed))
-              + '</small><table><thead><tr><th scope="col">species</th><th scope="col">count</th>'
+              + '</h4><small>' + fmtN(speciesCount) + ' species'
+              + ' · ' + statsEsc(fmtDistanceKm(h.distance_km))
+              + ' · last ' + statsEsc(relativeObservationTime(h.last_observed))
+              + '</small><table><thead><tr><th scope="col">species</th><th scope="col">birds reported</th>'
               + '<th scope="col">last observed</th></tr></thead><tbody>' + birds + '</tbody></table></section>';
           }).join('')
         : '<div class="stats-hotspots-empty">no hotspot observations in window</div>';
     }
     var hotspotCap = document.getElementById('statsHotspotsCap');
-    if (hotspotCap) hotspotCap.textContent = 'birds by location, ' + windowLabel(currentHours);
+    if (hotspotCap) hotspotCap.textContent = 'latest reports by location, ' + windowLabel(currentHours);
 
   }
 
