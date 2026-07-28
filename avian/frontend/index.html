@@ -212,7 +212,10 @@
     <section class="modal-sightings" aria-labelledby="modalSightingsTitle">
       <div class="sightings-head">
         <div>
-          <h3 id="modalSightingsTitle">Nearby observations</h3>
+          <div class="sightings-title-row">
+            <h3 id="modalSightingsTitle">Latest observations by hotspot</h3>
+            <button type="button" class="stats-help" data-stats-help="observations" aria-label="How latest hotspot observations work">?</button>
+          </div>
           <small id="modalSightingsSummary">selected window · selected radius</small>
         </div>
         <button type="button" id="modalSightingsRefresh" aria-label="Refresh nearby observations" title="Refresh nearby observations">
@@ -222,7 +225,7 @@
       <p class="sightings-status" id="modalSightingsStatus" aria-live="polite">Loading nearby observations…</p>
       <div class="sightings-table-wrap" id="modalSightingsTable" hidden>
         <table>
-          <thead><tr><th scope="col">hotspot</th><th scope="col">seen</th><th scope="col">count</th></tr></thead>
+          <thead><tr><th scope="col">hotspot</th><th scope="col">last seen</th><th scope="col">birds reported</th></tr></thead>
           <tbody id="modalSightingsBody"></tbody>
         </table>
       </div>
@@ -267,6 +270,22 @@
     <div class="about-body">
       <p><strong>Top Species</strong> lists the ten species with the highest bird counts in the selected time window.</p>
       <p>The number next to each species is the total number of birds observed. It counts birds, rather than simply counting observation records.</p>
+    </div>
+  </div>
+</div>
+
+<div id="observations-help-modal" class="stats-info-modal" aria-hidden="true" role="dialog" aria-labelledby="observationsHelpTitle">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="about-card" role="document">
+    <button type="button" class="modal-close" data-close="1" aria-label="close">×</button>
+    <p class="about-eyebrow">the atlas</p>
+    <h2 id="observationsHelpTitle">How hotspot observations work</h2>
+    <div class="about-body">
+      <p>The count shown on an Atlas card is the number of birds in the latest eBird report returned for that species. It is not a total across the selected time window.</p>
+      <p>Each row is the <strong>most recent eBird observation</strong> for this species at that hotspot within the selected time window and distance. It is not a total of every observation made there.</p>
+      <p><strong>Birds reported</strong> is the number of individual birds recorded on that one checklist. It is not the number of observers or observations, and it is not accumulated across the selected window.</p>
+      <p>A dash means the checklist reported the species without a numeric bird count.</p>
+      <p><a href="https://documenter.getpostman.com/view/664302/S1ENwy59" target="_blank" rel="noopener">Learn more about the eBird API →</a></p>
     </div>
   </div>
 </div>

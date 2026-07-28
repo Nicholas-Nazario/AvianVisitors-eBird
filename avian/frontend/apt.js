@@ -1453,8 +1453,13 @@
       var sketchSrc = apiUrl('/avian/api/cutout.php?sci=') + encodeURIComponent(s.sci) +
         (s.com ? '&com=' + encodeURIComponent(s.com) : '') +
         '&v=' + SKETCH_VERSION;
-      // Show only the count for the selected, bounded observation window.
-      var statRows = '<div><span class="n">' + fmtNK(+s.n || 0) + '</span><span class="lbl-inline">' + windowLabel(currentHours) + '</span></div>';
+      // The general eBird recent-observations endpoint returns the latest
+      // observation for each species, so this is a per-report bird count—not
+      // a sum across the selected window.
+      var latestCount = +s.n || 0;
+      var latestLabel = (latestCount === 1 ? 'bird' : 'birds') + ' in latest report';
+      var statRows = '<div aria-label="' + fmtN(latestCount) + ' ' + latestLabel + '"><span class="n">'
+        + fmtNK(latestCount) + '</span><span class="lbl-inline">' + latestLabel + '</span></div>';
       return ''
         + '<article class="bird-card" data-sci="' + s.sci + '">'
         + '<div class="stat">' + statRows + '</div>'
@@ -2721,6 +2726,8 @@
   document.addEventListener('keydown', function (ev) {
     if (ev.key === 'Escape' &&
       document.getElementById('detail-modal').getAttribute('aria-hidden') === 'false') {
+      // Let an explanatory popup above the bird detail close first.
+      if (document.querySelector('.stats-info-modal[aria-hidden="false"]')) return;
       if (location.hash) { location.hash = ''; } else { closeDetailModal(); }
     }
   });
@@ -2744,13 +2751,14 @@
   // help button is handled by delegation from the stable stats view.
   var statsHelpModals = {
     graph: document.getElementById('stats-graph-help-modal'),
-    table: document.getElementById('stats-table-help-modal')
+    table: document.getElementById('stats-table-help-modal'),
+    observations: document.getElementById('observations-help-modal')
   };
   function openStatsHelp(kind) {
     if (statsHelpModals[kind]) statsHelpModals[kind].setAttribute('aria-hidden', 'false');
   }
   function closeStatsHelp(modal) { modal.setAttribute('aria-hidden', 'true'); }
-  document.getElementById('v1').addEventListener('click', function (ev) {
+  document.addEventListener('click', function (ev) {
     var help = ev.target.closest && ev.target.closest('[data-stats-help]');
     if (help) openStatsHelp(help.getAttribute('data-stats-help'));
   });
