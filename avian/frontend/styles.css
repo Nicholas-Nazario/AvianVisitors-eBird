@@ -309,21 +309,21 @@
   }
   .about-project a { color: inherit; text-underline-offset: 2px; }
   .about-project a:hover { color: var(--accent); }
-  .info-contributing {
+  .info-contributing, .info-issues {
     margin-top: 18px;
     padding-top: 16px;
     border-top: 1px solid var(--hairline);
     color: var(--ink);
     font: 14px/1.5 ui-serif, Georgia, serif;
   }
-  .info-contributing h4 {
+  .info-contributing h4, .info-issues h4 {
     margin: 0 0 8px;
     font: 700 15px/1.25 ui-serif, Georgia, serif;
   }
-  .info-contributing p { margin: 0; }
-  .info-contributing p + p { margin-top: 10px; }
-  .info-contributing a { color: inherit; text-underline-offset: 2px; }
-  .info-contributing a:hover { color: var(--accent); }
+  .info-contributing p, .info-issues p { margin: 0; }
+  .info-contributing p + p, .info-issues p + p { margin-top: 10px; }
+  .info-contributing a, .info-issues a { color: inherit; text-underline-offset: 2px; }
+  .info-contributing a:hover, .info-issues a:hover { color: var(--accent); }
   .info-contributing code {
     padding: 2px 4px;
     border-radius: 3px;
@@ -336,6 +336,9 @@
     border-top: 1px solid var(--hairline);
     color: var(--ink);
     font: 14px/1.5 ui-serif, Georgia, serif;
+  }
+  .info-contributing .info-ideas {
+    margin-top: 14px; padding-top: 0; border-top: 0;
   }
   .info-ideas h4 {
     margin: 0 0 8px;
