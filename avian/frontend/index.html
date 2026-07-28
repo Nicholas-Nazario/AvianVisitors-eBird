@@ -126,7 +126,10 @@
           </div>
         </aside>
         <section class="grp stats-hotspots-group">
-          <div class="stats-section-head"><h3>Hotspots</h3></div>
+          <div class="stats-section-head">
+            <h3>Hotspots</h3>
+            <button type="button" class="stats-help" data-stats-help="hotspots" aria-label="How Stats hotspots work">?</button>
+          </div>
           <small id="statsHotspotsCap">latest reports by location, current window</small>
           <div id="statsHotspots"></div>
         </section>
@@ -255,8 +258,8 @@
     <p class="about-eyebrow">the stats</p>
     <h2 id="statsGraphHelpTitle">How Observed Species works</h2>
     <div class="about-body">
-      <p><strong>Observed Species</strong> shows the species observed in the selected time window. Each column is one species. Its position along the bottom is based on when it was last observed, from oldest to newest.</p>
-      <p>The square's height shows how many birds of that species were observed. A taller square means more birds. The graph may show only the most-observed species when there are too many to fit.</p>
+      <p><strong>Observed Species</strong> shows the species returned in the selected time window. Each column is one species, and the square's height represents the bird count in that species' latest eBird report.</p>
+      <p><strong>Default order:</strong> columns run from the oldest latest-report timestamp on the left to the newest on the right. When the desktop graph cannot fit every species, it first keeps those with the largest latest-report bird counts, then orders that subset by time. Mobile shows every species.</p>
     </div>
   </div>
 </div>
@@ -268,8 +271,23 @@
     <p class="about-eyebrow">the stats</p>
     <h2 id="statsTableHelpTitle">How Top Species works</h2>
     <div class="about-body">
-      <p><strong>Top Species</strong> lists the ten species with the highest bird counts in the selected time window.</p>
-      <p>The number next to each species is the total number of birds observed. It counts birds, rather than simply counting observation records.</p>
+      <p><strong>Top Species</strong> lists up to ten species. The number beside a species is the bird count from its latest eBird report, not a total accumulated across the selected window.</p>
+      <p><strong>Default sort:</strong> largest latest-report bird count first. Equal counts are ordered by the most recent report first.</p>
+    </div>
+  </div>
+</div>
+
+<div id="stats-hotspots-help-modal" class="stats-info-modal" aria-hidden="true" role="dialog" aria-labelledby="statsHotspotsHelpTitle">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="about-card" role="document">
+    <button type="button" class="modal-close" data-close="1" aria-label="close">×</button>
+    <p class="about-eyebrow">the stats</p>
+    <h2 id="statsHotspotsHelpTitle">How Stats hotspots work</h2>
+    <div class="about-body">
+      <p>Each species is grouped under the hotspot attached to its latest eBird report in the selected window. These are not every report made at that hotspot.</p>
+      <p>A hotspot subtitle shows how many species are listed, its distance from the selected latitude and longitude, and the newest report time in that table. Each row shows a species, the number of birds on its latest report, and when that report was made.</p>
+      <p><strong>Default hotspot sort:</strong> closest to the selected coordinates first; equal distances use the newest report first. Hotspots without coordinates appear last. On desktop the sequence flows down balanced columns; on mobile it flows top to bottom.</p>
+      <p><strong>Default table sort:</strong> largest reported bird count first; equal counts use the most recent report first.</p>
     </div>
   </div>
 </div>
@@ -285,6 +303,7 @@
       <p>Each row is the <strong>most recent eBird observation</strong> for this species at that hotspot within the selected time window and distance. It is not a total of every observation made there.</p>
       <p><strong>Birds reported</strong> is the number of individual birds recorded on that one checklist. It is not the number of observers or observations, and it is not accumulated across the selected window.</p>
       <p>A dash means the checklist reported the species without a numeric bird count.</p>
+      <p><strong>Default sorts:</strong> the Atlas grid starts with the largest latest-report bird counts first. This hotspot table is ordered by most recent observation first.</p>
       <p><a href="https://documenter.getpostman.com/view/664302/S1ENwy59" target="_blank" rel="noopener">Learn more about the eBird API →</a></p>
     </div>
   </div>
@@ -300,6 +319,7 @@
       <p>The eBird recent-observations API accepts its <strong>back</strong> window in whole days. We request the broader day-based set, then use each observation's <strong>obsDt</strong> timestamp to filter it in our API.</p>
       <p>Use the presets for 24-hour, 7-day, 14-day, or 30-day windows, or enter any whole number from 1 to 30 in the field beside 30D. The API request covers the broader day-based range, then our API filters observations by timestamp.</p>
       <p>The eBird recent-observations endpoint provides at most 30 days of data, so 30 days is the maximum available window.</p>
+      <p>The presets are arranged from shortest to longest. They filter the data and do not change the active sort in Stats or Atlas.</p>
       <p><a href="https://documenter.getpostman.com/view/664302/S1ENwy59#62b5ffb3-006e-4e8a-8e50-21d90d036edc" target="_blank" rel="noopener">Learn more about the eBird API →</a></p>
     </div>
   </div>
@@ -314,7 +334,8 @@
     <div class="about-body">
       <p><strong>Distance</strong> searches for recent eBird observations within the selected radius of your latitude and longitude. Use it to see birds reported anywhere near a point.</p>
       <p><strong>Hotspot</strong> searches only the eBird hotspots you select. Use it when you want observations tied to specific birding locations rather than the whole surrounding area.</p>
-      <p>The coordinates and distance are also used to find nearby hotspots. You can select up to five of them at a time.</p>
+      <p>The coordinates and distance are also used to find nearby hotspots. You can select up to ten of them at a time.</p>
+      <p><strong>Default sort:</strong> nearby hotspot choices are ordered closest first; equal distances are ordered alphabetically by hotspot name.</p>
     </div>
   </div>
 </div>

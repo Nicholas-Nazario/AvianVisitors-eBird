@@ -1335,7 +1335,9 @@
     // already returns species sorted by last_observed DESC; re-sort by count.
     var ranked = (recent.species || [])
       .slice()
-      .sort(function (a, b) { return (+b.n) - (+a.n); })
+      .sort(function (a, b) {
+        return ((+b.n) - (+a.n)) || String(b.last_observed || '').localeCompare(String(a.last_observed || ''));
+      })
       .slice(0, 10);
     document.getElementById('statsTopSpec').innerHTML = ranked.length
       ? ranked.map(function (s, i) { return liRow(pad(i + 1), s.com, fmtN(+s.n), s.sci); }).join('')
@@ -2760,6 +2762,7 @@
   var statsHelpModals = {
     graph: document.getElementById('stats-graph-help-modal'),
     table: document.getElementById('stats-table-help-modal'),
+    hotspots: document.getElementById('stats-hotspots-help-modal'),
     observations: document.getElementById('observations-help-modal')
   };
   function openStatsHelp(kind) {
