@@ -2,7 +2,7 @@
 // AvianVisitors - JSON facade over eBird recent observations and hotspots.
 //
 // Endpoints (?action=...):
-//   dashboard / species / hotspots
+//   dashboard / species / hotspots / nearby-species
 //
 // Config: avian/data/ebird.json (see ebird.example.json). Override token
 // with env EBIRD_API_KEY. Observations are cached briefly on disk so the
@@ -60,7 +60,7 @@ foreach ($rawRegionCodes as $rawCode) {
     }
     if (!in_array($code, $regionCodes, true)) $regionCodes[] = $code;
 }
-if ($mode === 'hotspot' && !$regionCodes && $action !== 'hotspots') {
+if ($mode === 'hotspot' && !$regionCodes && !in_array($action, ['hotspots', 'nearby-species'], true)) {
     http_response_code(400);
     echo json_encode(['error' => 'at least one regionCode is required for hotspot mode']);
     exit;
@@ -235,6 +235,69 @@ function fetch_hotspots(array $config, string $token, string $cachePath, int $ca
     return $hotspots;
 }
 
+/** Fetch recent nearby observations for one eBird species code. */
+function fetch_nearby_species_observations(
+    float $lat,
+    float $lng,
+    int $back,
+    int $dist,
+    int $maxResults,
+    string $speciesCode,
+    string $token
+): array {
+    $url = 'https://api.ebird.org/v2/data/obs/geo/recent/' . rawurlencode($speciesCode) . '?' . http_build_query([
+        'lat' => $lat,
+        'lng' => $lng,
+        'back' => $back,
+        'dist' => $dist,
+        'maxResults' => $maxResults,
+        'hotspot' => 'true',
+    ]);
+    $ctx = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'header' => "X-eBirdApiToken: $token\r\nAccept: application/json\r\n",
+            'timeout' => 20,
+            'ignore_errors' => true,
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $ctx);
+    $status = 0;
+    $respHeaders = function_exists('http_get_last_response_headers')
+        ? http_get_last_response_headers()
+        : ($http_response_header ?? null);
+    if (is_array($respHeaders) && isset($respHeaders[0]) && preg_match('/\s(\d{3})\s/', $respHeaders[0], $m)) {
+        $status = (int)$m[1];
+    }
+    if ($raw === false || $status >= 400) {
+        http_response_code(502);
+        echo json_encode(['error' => 'eBird nearby species fetch failed', 'status' => $status]);
+        exit;
+    }
+    $rows = json_decode($raw, true);
+    if (!is_array($rows)) {
+        http_response_code(502);
+        echo json_encode(['error' => 'eBird returned invalid nearby species data']);
+        exit;
+    }
+
+    $observations = [];
+    foreach (array_slice($rows, 0, $maxResults) as $row) {
+        if (!is_array($row)) continue;
+        $observations[] = [
+            'speciesCode' => trim((string)($row['speciesCode'] ?? $speciesCode)),
+            'locId' => trim((string)($row['locId'] ?? '')),
+            'locName' => trim((string)($row['locName'] ?? '')),
+            'obsDt' => trim((string)($row['obsDt'] ?? '')),
+            'howMany' => isset($row['howMany']) ? max(1, (int)$row['howMany']) : null,
+        ];
+    }
+    usort($observations, function ($a, $b) {
+        return strcmp($b['obsDt'], $a['obsDt']);
+    });
+    return $observations;
+}
+
 function filter_by_hours(array $obs, int $hours): array {
     $cutoff = time() - ($hours * 3600);
     $out = [];
@@ -384,6 +447,34 @@ function build_timeseries(array $obs, int $days): array {
     ];
 }
 
+if ($action === 'nearby-species') {
+    $speciesCode = trim((string)($_GET['speciesCode'] ?? ''));
+    if ($speciesCode === '' || !preg_match('/^[A-Za-z0-9-]+$/', $speciesCode)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'valid speciesCode= required']);
+        exit;
+    }
+    $back = max(1, min(30, (int)($_GET['back'] ?? 7)));
+    $dist = max(1, min(50, (int)($_GET['dist'] ?? 25)));
+    $maxResults = max(1, min(10000, (int)($_GET['maxResults'] ?? 100)));
+    header('Cache-Control: no-store');
+    echo json_encode([
+        'speciesCode' => $speciesCode,
+        'observations' => fetch_nearby_species_observations(
+            (float)$config['lat'],
+            (float)$config['lng'],
+            $back,
+            $dist,
+            $maxResults,
+            $speciesCode,
+            $token
+        ),
+        'as_of' => date('c'),
+        'source' => 'ebird',
+    ]);
+    exit;
+}
+
 if ($action === 'hotspots') {
     echo json_encode([
         'hotspots' => fetch_hotspots($config, $token, $HOTSPOT_CACHE_PATH, $CACHE_TTL, $forceRefresh),
@@ -452,6 +543,7 @@ switch ($action) {
         if ($summary) {
             $summary = [
                 'com' => $summary['com'],
+                'speciesCode' => $summary['speciesCode'],
                 'total' => $summary['n'],
                 'first_observed' => $summary['first_observed'],
                 'last_observed' => $summary['last_observed'],

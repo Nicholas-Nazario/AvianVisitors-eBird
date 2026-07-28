@@ -56,6 +56,7 @@ with the new `hours` value.
 | **`dashboard&hours=12&days=30`** | Nested `recent` species/hotspot data and `timeseries` daily/by-hour counts | All collage, atlas, and stats views. `hours` comes from the 1H / 3H / 6H / 12H / 24H / 7D / 30D picker. |
 | **`hotspots`** | Nearby hotspot records (`hotspots`, `as_of`) | Populates the hotspot selector in the location menu. |
 | **`species&sci=...`** | One species summary and up to 500 observations | Populates the species detail view. |
+| **`nearby-species&speciesCode=...`** | Up to 100 recent hotspot observations for one species within the selected time window and radius | Populates the Atlas detail modal's nearby-observations table. Responses are cached in browser memory until the user refreshes them. |
 
 In hotspot mode, `dashboard` and `species` requests require at least one
 `regionCode`; invalid IDs or more than ten unique IDs return `400`. Duplicate

@@ -2215,6 +2215,11 @@
   // tunnel; one fetch per session is plenty.
   var SPECIES_CACHE = {};
   var WIKI_CACHE = {};
+  // Nearby sightings are intentionally session-memory only. Reopening a bird
+  // reuses its response; the modal's refresh button explicitly replaces it.
+  var NEARBY_SPECIES_CACHE = {};
+  var NEARBY_SPECIES_PENDING = {};
+  var NEARBY_SPECIES_MAX = 100;
   function rarityLabel(total, firstSeenIso) {
     if (!total) return '-';
     var days = 1;
@@ -2247,11 +2252,158 @@
     if (compact) return days + 'd ago';
     return days === 1 ? 'yesterday' : days + ' days ago';
   }
-  function lastObservedParts(summary, now) {
-    return {
-      location: (summary && summary.last_locName) || '-',
-      time: relativeObservationTime(summary && summary.last_observed, now),
-    };
+  function nearbySpeciesBack() {
+    // eBird accepts whole days; every window-picker option is a whole-day
+    // value from 24 hours through 30 days.
+    return Math.max(1, Math.min(30, Math.ceil(currentHours / 24)));
+  }
+  function nearbySpeciesDist() {
+    return Math.max(1, Math.min(50, Math.round(+GEO.dist || 1)));
+  }
+  function nearbySpeciesScopeLabel() {
+    var days = nearbySpeciesBack();
+    var windowText = days === 1 ? 'past 24 hours' : 'past ' + days + ' days';
+    return windowText + ' · within ' + nearbySpeciesDist() + ' km';
+  }
+  function nearbySpeciesKey(speciesCode) {
+    return [
+      speciesCode,
+      (+GEO.lat).toFixed(5),
+      (+GEO.lng).toFixed(5),
+      nearbySpeciesBack(),
+      nearbySpeciesDist(),
+      NEARBY_SPECIES_MAX,
+    ].join('|');
+  }
+  function nearbySpeciesUrl(speciesCode, force) {
+    var url = apiUrl('/avian/api/birdnet-api.php?action=nearby-species')
+      + '&speciesCode=' + encodeURIComponent(speciesCode)
+      + '&lat=' + encodeURIComponent(GEO.lat)
+      + '&lng=' + encodeURIComponent(GEO.lng)
+      + '&back=' + nearbySpeciesBack()
+      + '&dist=' + nearbySpeciesDist()
+      + '&maxResults=' + NEARBY_SPECIES_MAX;
+    if (force) url += '&refresh=1';
+    return url;
+  }
+  function requestNearbySpecies(speciesCode, force) {
+    var key = nearbySpeciesKey(speciesCode);
+    if (!force && NEARBY_SPECIES_CACHE[key]) {
+      return Promise.resolve(NEARBY_SPECIES_CACHE[key]);
+    }
+    if (!force && NEARBY_SPECIES_PENDING[key]) return NEARBY_SPECIES_PENDING[key];
+
+    var request = fetchJson(nearbySpeciesUrl(speciesCode, force)).then(function (response) {
+      if (!response || !Array.isArray(response.observations)) throw new Error('invalid nearby sightings response');
+      var cached = {
+        observations: response.observations.slice().sort(function (a, b) {
+          return String(b.obsDt || '').localeCompare(String(a.obsDt || ''));
+        }),
+        fetchedAt: response.as_of || new Date().toISOString(),
+      };
+      NEARBY_SPECIES_CACHE[key] = cached;
+      return cached;
+    });
+    NEARBY_SPECIES_PENDING[key] = request;
+    request.then(function () {
+      delete NEARBY_SPECIES_PENDING[key];
+    }, function () {
+      delete NEARBY_SPECIES_PENDING[key];
+    });
+    return request;
+  }
+  function resetNearbySightings(sci, speciesCode) {
+    var refresh = document.getElementById('modalSightingsRefresh');
+    var summary = document.getElementById('modalSightingsSummary');
+    var status = document.getElementById('modalSightingsStatus');
+    var table = document.getElementById('modalSightingsTable');
+    var recent = document.getElementById('modalRecentObservation');
+    document.getElementById('modalSightingsBody').innerHTML = '';
+    summary.textContent = nearbySpeciesScopeLabel();
+    table.hidden = true;
+    recent.textContent = speciesCode
+      ? 'Loading recent observation…'
+      : 'Recent observation unavailable.';
+    refresh.classList.remove('is-loading');
+    refresh.dataset.sci = sci || '';
+    refresh.dataset.speciesCode = speciesCode || '';
+    refresh.disabled = !speciesCode;
+    status.textContent = speciesCode
+      ? 'Loading nearby observations…'
+      : 'Nearby observations are unavailable for this bird.';
+  }
+  function recentObservationText(row) {
+    var location = row.locName || row.locId || 'Unknown location';
+    var count = row.howMany == null ? null : Math.max(1, +row.howMany || 1);
+    var birds = count == null
+      ? 'Birds'
+      : fmtN(count) + ' bird' + (count === 1 ? '' : 's');
+    return birds + ' seen at ' + location + ', ' + relativeObservationTime(row.obsDt, undefined, true);
+  }
+  function renderNearbySightings(sci, cached) {
+    if (document.getElementById('modalSci').textContent !== sci) return;
+    var observations = cached.observations || [];
+    var body = document.getElementById('modalSightingsBody');
+    var table = document.getElementById('modalSightingsTable');
+    var status = document.getElementById('modalSightingsStatus');
+    var summary = document.getElementById('modalSightingsSummary');
+    var recent = document.getElementById('modalRecentObservation');
+    summary.textContent = observations.length.toLocaleString() + ' observation' + (observations.length === 1 ? '' : 's')
+      + ' · ' + nearbySpeciesScopeLabel();
+    if (!observations.length) {
+      body.innerHTML = '';
+      table.hidden = true;
+      recent.textContent = 'No recent observations in the selected window.';
+      status.textContent = 'No nearby observations reported in the selected window.';
+      return;
+    }
+    recent.textContent = recentObservationText(observations[0]);
+    body.innerHTML = observations.map(function (row) {
+      var location = row.locName || row.locId || 'Unknown location';
+      var observed = relativeObservationTime(row.obsDt);
+      var observedCompact = relativeObservationTime(row.obsDt, undefined, true);
+      var count = row.howMany == null ? '—' : fmtN(+row.howMany);
+      var dateTime = String(row.obsDt || '').replace(' ', 'T');
+      return '<tr><td title="' + statsEsc(location) + '">' + statsEsc(location) + '</td>'
+        + '<td aria-label="' + statsEsc(observed) + '"><time datetime="' + statsEsc(dateTime) + '">'
+        + statsEsc(observedCompact) + '</time></td><td>' + statsEsc(count) + '</td></tr>';
+    }).join('');
+    table.hidden = false;
+    status.textContent = '';
+  }
+  function loadNearbySightings(sci, speciesCode, force) {
+    if (!speciesCode) return Promise.resolve();
+    var refresh = document.getElementById('modalSightingsRefresh');
+    var status = document.getElementById('modalSightingsStatus');
+    var table = document.getElementById('modalSightingsTable');
+    var cached = NEARBY_SPECIES_CACHE[nearbySpeciesKey(speciesCode)];
+    refresh.dataset.sci = sci;
+    refresh.dataset.speciesCode = speciesCode;
+    refresh.disabled = true;
+    refresh.classList.add('is-loading');
+    if (!cached) {
+      table.hidden = true;
+      document.getElementById('modalRecentObservation').textContent = 'Loading recent observation…';
+    }
+    status.textContent = force ? 'Refreshing nearby observations…' : 'Loading nearby observations…';
+
+    return requestNearbySpecies(speciesCode, force).then(function (result) {
+      renderNearbySightings(sci, result);
+    }).catch(function () {
+      if (document.getElementById('modalSci').textContent !== sci) return;
+      if (cached) {
+        renderNearbySightings(sci, cached);
+        status.textContent = 'Refresh failed; showing the previous observations.';
+      } else {
+        table.hidden = true;
+        document.getElementById('modalRecentObservation').textContent = 'Recent observation unavailable.';
+        status.textContent = 'Nearby observations could not be loaded.';
+      }
+    }).finally(function () {
+      if (document.getElementById('modalSci').textContent !== sci) return;
+      refresh.disabled = false;
+      refresh.classList.remove('is-loading');
+    });
   }
   function sketchSrc(sci, pose) {
     // Look up the common name from the current window data so the worker's JIT
@@ -2271,6 +2423,10 @@
     var img = document.getElementById('modalImg');
     var poseToggle = document.getElementById('modalPoseToggle');
     var poseBtns = [].slice.call(poseToggle.querySelectorAll('button'));
+    var atlasSpecies = ((DATA.recent && DATA.recent.species) || []).filter(function (s) {
+      return s.sci === sci;
+    })[0];
+    var initialSpeciesCode = atlasSpecies && atlasSpecies.speciesCode;
 
     // Reset the toggle: assume nothing's available, set pose 1 (perched
     // cutout - every species has it) as the optimistic default. HEAD
@@ -2326,16 +2482,14 @@
     document.getElementById('modalSci').textContent = sci;
     document.getElementById('modalGenus').textContent = (sci.split(' ')[0] || '-');
     document.getElementById('modalCommon').textContent = '-';
-    document.getElementById('modalWindow').textContent = '-';
-    document.getElementById('modalWindowLbl').textContent = 'observed ' + windowLabel(currentHours);
-    document.getElementById('modalLastLocation').textContent = '-';
-    document.getElementById('modalLastTime').textContent = '-';
     document.getElementById('modalRarity').textContent = '-';
     document.getElementById('modalRarity').classList.remove('rare');
     document.getElementById('modalDesc').textContent = 'Loading description...';
     document.getElementById('modalDesc').classList.add('placeholder');
     document.getElementById('modalWiki').href = wikiUrl(sci);
-    document.getElementById('modalEbird').href = ebirdUrl(sci);
+    document.getElementById('modalEbird').href = ebirdUrl(sci, initialSpeciesCode);
+    resetNearbySightings(sci, initialSpeciesCode);
+    if (initialSpeciesCode) loadNearbySightings(sci, initialSpeciesCode, false);
     // FLIP-style morph: scale + translate the modal-card from the
     // clicked atlas card's position to its natural centered size, so
     // the card *expands* into the detail view instead of just fading
@@ -2358,17 +2512,17 @@
         return j;
       });
     loadSpecies.then(function (j) {
+      if (document.getElementById('modalSci').textContent !== sci) return;
       var s = j.summary || {};
       document.getElementById('modalCommon').textContent = s.com || sci;
-      var winRow = ((DATA.recent && DATA.recent.species) || []).filter(function (x) { return x.sci === sci; })[0];
-      document.getElementById('modalWindow').textContent = (winRow ? +winRow.n : 0).toLocaleString();
-      var lastObserved = lastObservedParts(s);
-      document.getElementById('modalLastLocation').textContent = lastObserved.location;
-      document.getElementById('modalLastTime').textContent = lastObserved.time;
       var rar = rarityLabel(+s.total || 0, s.first_observed);
       var rarEl = document.getElementById('modalRarity');
       rarEl.textContent = rar;
       if (rar === 'rare') rarEl.classList.add('rare');
+      if (!initialSpeciesCode && s.speciesCode) {
+        document.getElementById('modalEbird').href = ebirdUrl(sci, s.speciesCode);
+        loadNearbySightings(sci, s.speciesCode, false);
+      }
     });
 
     // Wikipedia summary (description + genus / family).
@@ -2376,12 +2530,14 @@
       ? Promise.resolve(WIKI_CACHE[sci])
       : fetchJson(apiUrl('/avian/api/wiki.php?sci=') + encodeURIComponent(sci)).then(function (j) {
         WIKI_CACHE[sci] = j; return j;
-      });
+    });
     loadWiki.then(function (j) {
+      if (document.getElementById('modalSci').textContent !== sci) return;
       var desc = document.getElementById('modalDesc');
       desc.textContent = j.extract || 'No description available.';
       desc.classList.toggle('placeholder', !j.extract);
     }).catch(function () {
+      if (document.getElementById('modalSci').textContent !== sci) return;
       var desc = document.getElementById('modalDesc');
       desc.textContent = 'No description available.';
       desc.classList.add('placeholder');
@@ -2507,6 +2663,12 @@
   // Pose toggle inside the modal - swaps the sketch between perched
   // (default) and in-flight alt pose. A short opacity transition makes
   // the swap feel intentional rather than a hard cut.
+  document.getElementById('modalSightingsRefresh').addEventListener('click', function () {
+    var sci = this.dataset.sci;
+    var speciesCode = this.dataset.speciesCode;
+    if (sci && speciesCode) loadNearbySightings(sci, speciesCode, true);
+  });
+
   document.getElementById('modalPoseToggle').addEventListener('click', function (ev) {
     var btn = ev.target.closest && ev.target.closest('button');
     if (!btn || btn.getAttribute('data-unavailable') === 'true') return;

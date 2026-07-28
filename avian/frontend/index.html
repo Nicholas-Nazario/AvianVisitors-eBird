@@ -200,11 +200,7 @@
         <h2 id="modalCommon">-</h2>
         <p class="sci" id="modalSci"></p>
         <div class="modal-stats">
-          <div><span class="n" id="modalWindow">-</span><span class="lbl" id="modalWindowLbl">window</span></div>
-          <div>
-            <span class="n last-observed-value"><span id="modalLastLocation">-</span><span class="last-observed-time" id="modalLastTime">-</span></span>
-            <span class="lbl">last observed</span>
-          </div>
+          <div><span class="n recent-observation-copy" id="modalRecentObservation">-</span><span class="lbl">most recent observation</span></div>
         </div>
         <p class="desc placeholder" id="modalDesc">Loading description...</p>
         <div class="modal-meta">
@@ -213,6 +209,24 @@
         </div>
       </div>
     </div>
+    <section class="modal-sightings" aria-labelledby="modalSightingsTitle">
+      <div class="sightings-head">
+        <div>
+          <h3 id="modalSightingsTitle">Nearby observations</h3>
+          <small id="modalSightingsSummary">selected window · selected radius</small>
+        </div>
+        <button type="button" id="modalSightingsRefresh" aria-label="Refresh nearby observations" title="Refresh nearby observations">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4L4 9"/><path d="M4 4v5h5"/><path d="M4 13a8 8 0 0 0 14.7 4L20 15"/><path d="M20 20v-5h-5"/></svg>
+        </button>
+      </div>
+      <p class="sightings-status" id="modalSightingsStatus" aria-live="polite">Loading nearby observations…</p>
+      <div class="sightings-table-wrap" id="modalSightingsTable" hidden>
+        <table>
+          <thead><tr><th scope="col">hotspot</th><th scope="col">seen</th><th scope="col">count</th></tr></thead>
+          <tbody id="modalSightingsBody"></tbody>
+        </table>
+      </div>
+    </section>
     <div class="modal-actions">
       <a id="modalWiki" class="chip ext" target="_blank" rel="noopener">wiki</a>
       <a id="modalEbird" class="chip ext" target="_blank" rel="noopener">ebird</a>
