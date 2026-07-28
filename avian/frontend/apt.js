@@ -1346,8 +1346,10 @@
       hotspotEl.innerHTML = hotspots.length
         ? hotspots.map(function (h) {
             var birds = (h.species || []).map(function (s) {
+              var observed = relativeObservationTime(s.last_observed);
+              var observedCompact = relativeObservationTime(s.last_observed, undefined, true);
               return '<tr><td>' + statsEsc(s.com || s.sci) + '</td><td>' + fmtN(+s.n)
-                + '</td><td>' + statsEsc(relativeObservationTime(s.last_observed)) + '</td></tr>';
+                + '</td><td aria-label="' + statsEsc(observed) + '">' + statsEsc(observedCompact) + '</td></tr>';
             }).join('');
             return '<section class="stats-hotspot"><h4>' + statsEsc(h.locName || h.locId || 'unknown hotspot')
               + '</h4><small>' + fmtN(+h.n) + ' birds · last ' + statsEsc(relativeObservationTime(h.last_observed))
@@ -2226,21 +2228,23 @@
     if (perDay >= 0.2) return 'occasional';
     return 'rare';
   }
-  function relativeObservationTime(obsDt, now) {
+  function relativeObservationTime(obsDt, now, compact) {
     var timestamp = Date.parse((obsDt || '').replace(' ', 'T'));
     if (isNaN(timestamp)) return '-';
     var minutes = Math.max(0, Math.floor(((now || Date.now()) - timestamp) / 60000));
     if (minutes < 60) {
-      return minutes + ' min ago';
+      return minutes + (compact ? 'm ago' : ' min ago');
     }
     var hours = Math.floor(minutes / 60);
     if (hours < 24) {
       var remainingMinutes = minutes % 60;
+      if (compact) return hours + 'h' + (remainingMinutes ? ' ' + remainingMinutes + 'm' : '') + ' ago';
       var hourLabel = hours + ' hour' + (hours === 1 ? '' : 's');
       if (!remainingMinutes) return hourLabel + ' ago';
       return hourLabel + ' and ' + remainingMinutes + ' min ago';
     }
     var days = Math.floor(hours / 24);
+    if (compact) return days + 'd ago';
     return days === 1 ? 'yesterday' : days + ' days ago';
   }
   function lastObservedParts(summary, now) {
