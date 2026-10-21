@@ -1,0 +1,20 @@
+{
+  "input": {
+    "name": "wiki-required",
+    "endpoint": "wiki.php",
+    "query": "",
+    "rows": []
+  },
+  "expected": {
+    "status": 400,
+    "headers": [
+      "Access-Control-Allow-Origin: *",
+      "Access-Control-Allow-Methods: GET, OPTIONS",
+      "Access-Control-Allow-Headers: Content-Type",
+      "Content-Type: application/json; charset=utf-8",
+      "Cache-Control: public, max-age=86400"
+    ],
+    "body": "{\"error\":\"sci required\"}",
+    "requests": []
+  }
+}

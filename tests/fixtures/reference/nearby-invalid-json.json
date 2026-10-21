@@ -1,0 +1,32 @@
+{
+  "input": {
+    "name": "nearby-invalid-json",
+    "query": "action=nearby-species&speciesCode=amecro",
+    "raw": "false",
+    "rows": []
+  },
+  "expected": {
+    "status": 502,
+    "headers": [
+      "Access-Control-Allow-Origin: *",
+      "Access-Control-Allow-Methods: GET, OPTIONS",
+      "Access-Control-Allow-Headers: Content-Type",
+      "Content-Type: application/json; charset=utf-8",
+      "Cache-Control: no-store"
+    ],
+    "body": "{\"error\":\"eBird returned invalid nearby species data\"}",
+    "requests": [
+      {
+        "url": "https://api.ebird.org/v2/data/obs/geo/recent/amecro?lat=40.794618&lng=-73.959878&back=7&dist=25&maxResults=100&hotspot=true",
+        "context": {
+          "http": {
+            "method": "GET",
+            "header": "X-eBirdApiToken: synthetic-token\r\nAccept: application/json\r\n",
+            "timeout": 20,
+            "ignore_errors": true
+          }
+        }
+      }
+    ]
+  }
+}

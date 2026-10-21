@@ -1,0 +1,46 @@
+{
+  "input": {
+    "name": "dashboard-nonrecord",
+    "query": "",
+    "rows": [
+      null,
+      7,
+      "bad",
+      {
+        "sciName": " Corvus brachyrhynchos ",
+        "comName": " American Crow ",
+        "speciesCode": " amecro ",
+        "howMany": 0,
+        "obsDt": "2026-10-21 11:30",
+        "locId": "L1",
+        "locName": " Near ",
+        "lat": 40.794618,
+        "lng": -73.959878
+      }
+    ]
+  },
+  "expected": {
+    "status": 200,
+    "headers": [
+      "Access-Control-Allow-Origin: *",
+      "Access-Control-Allow-Methods: GET, OPTIONS",
+      "Access-Control-Allow-Headers: Content-Type",
+      "Content-Type: application/json; charset=utf-8",
+      "Cache-Control: public, max-age=30"
+    ],
+    "body": "{\"recent\":{\"hours\":24,\"species\":[{\"sci\":\"Corvus brachyrhynchos\",\"com\":\"American Crow\",\"speciesCode\":\"amecro\",\"n\":1,\"last_observed\":\"2026-10-21 11:30\",\"last_locName\":\" Near \",\"first_observed\":\"2026-10-21 11:30\",\"best_conf\":null,\"top_file\":null,\"top_at\":\"2026-10-21 11:30\"}],\"hotspots\":[{\"locId\":\"L1\",\"locName\":\"Near\",\"lat\":40.794618,\"lng\":-73.959878,\"n\":1,\"last_observed\":\"2026-10-21 11:30\",\"species\":[{\"sci\":\"Corvus brachyrhynchos\",\"com\":\"American Crow\",\"n\":1,\"last_observed\":\"2026-10-21 11:30\"}],\"distance_km\":0}],\"as_of\":\"2026-10-21T12:00:00+00:00\",\"source\":\"ebird\"},\"timeseries\":{\"days\":30,\"daily\":[{\"date\":\"2026-10-21\",\"observations\":1,\"species\":1}],\"by_hour\":[{\"hour\":11,\"observations\":1}],\"as_of\":\"2026-10-21T12:00:00+00:00\",\"source\":\"ebird\"},\"as_of\":\"2026-10-21T12:00:00+00:00\",\"source\":\"ebird\"}",
+    "requests": [
+      {
+        "url": "https://api.ebird.org/v2/data/obs/geo/recent?lat=40.794618&lng=-73.959878&dist=3&sort=date&hotspot=true&back=30",
+        "context": {
+          "http": {
+            "method": "GET",
+            "header": "X-eBirdApiToken: synthetic-token\r\nAccept: application/json\r\n",
+            "timeout": 20,
+            "ignore_errors": true
+          }
+        }
+      }
+    ]
+  }
+}

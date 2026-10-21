@@ -24,3 +24,12 @@ avian/scripts/prompts/
 
 # Local-only agent working material
 docs/agent-instructions/
+
+# Express build, dependencies, reports and runtime images
+node_modules/
+dist/
+playwright-report/
+test-results/
+coverage/
+avian/data/cutouts/
+static-site/

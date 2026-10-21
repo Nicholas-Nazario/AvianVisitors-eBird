@@ -5,40 +5,37 @@ Illustrations render from species data keyed by scientific name (`sci`).
 
 ## Local run
 
-Requires `php` (e.g. `brew install php`) and an [eBird API key](https://ebird.org/api/keygen).
+Install Node.js **24.22.1** and npm, then supply an [eBird API key](https://ebird.org/api/keygen):
 
 ```bash
-# one-time: copy example config and put your token in "token"
-cp avian/data/ebird.example.json avian/data/ebird.json
-
+npm ci
+export EBIRD_API_KEY=your_key
 ./serve.sh
 ```
 
-Or: `EBIRD_API_KEY=... ./serve.sh` (writes `ebird.json` on first run).
+Open http://localhost:8080/. Existing `avian/data/ebird.json` configuration and
+cache files remain supported. Alternatively copy `avian/data/ebird.example.json`
+to `avian/data/ebird.json` and edit its token. Environment credentials are read
+at startup and are never written into configuration by the launcher.
 
-Open http://localhost:8080/
+`PORT` defaults to `8080`; the local launcher binds `HOST=localhost`. Set
+`HOST=0.0.0.0` when you intend to accept connections from other machines. `npm run dev` runs the TypeScript development server;
+`npm run build && npm start` runs compiled JavaScript.
 
-Alias: `alias avian='/Users/nicholasnazario/src/AvianVisitors-eBird/serve.sh'`
-
-Default query: Central Park area (`lat`/`lng`/`dist` in `avian/data/ebird.json`).
-
-Hotspot mode accepts one or more repeated hotspot IDs, up to ten:
+Hotspot mode accepts up to ten unique selections:
 `?action=dashboard&mode=hotspot&regionCode[]=L123456&regionCode[]=L654321`.
-Duplicate IDs are collapsed. The API batches the selected hotspot IDs into one
-eBird request, then combines observations before producing both dashboard
-datasets. Species observations are summed; timeseries observation totals are
-summed while each species counts once per day.
+The API sends one batched eBird request and preserves existing count semantics.
 
 ## Layout
 
-```
-avian/
-├── frontend/     # collage UI
-├── assets/       # illustrations + cutout fallbacks
-├── api/          # cutout.php, birdnet-api.php (eBird), wiki.php
-├── data/         # ebird.json (gitignored), cache
-└── scripts/      # optional illustration generation
-serve.sh
+```text
+server/          # Express routes, eBird aggregation and image processing
+tests/           # fixtures, contracts, focused API and browser checks
+avian/frontend/  # unchanged collage UI
+avian/assets/    # public illustrations and cutout fallbacks
+avian/data/      # private configuration and disk caches
+avian/scripts/   # independent Python artwork tools
+serve.sh         # local Node launcher
 ```
 
 eBird `sciName` → illustration slug (`Branta canadensis` → `branta-canadensis.png`).
@@ -65,56 +62,29 @@ stale cache is used; otherwise the request fails rather than returning partial
 data. The `refresh=1` query parameter bypasses a fresh observation cache and
 forces an upstream fetch.
 
-## Fly.io backend + GitHub Pages frontend
+## Hosting and verification
 
-The repository includes a `Dockerfile` and `fly.toml`. The Fly app runs the
-PHP API, while GitHub Pages serves the static frontend.
+The Node container serves both the frontend and the existing API URLs on port
+8080. The `.php` suffixes are compatibility URL names handled by Express.
+The Fly app remains `avianvisitors-ebird` in `ewr`, with the same hostname,
+HTTPS, health check and autoscaling configuration.
 
-### Deploy the backend to Fly.io
-
-Install and authenticate [`flyctl`](https://fly.io/docs/flyctl/install/), then
-run these commands from the repository root:
-
-```bash
-fly launch --no-deploy
-fly secrets set EBIRD_API_KEY=your_ebird_api_key
-fly deploy
-```
-
-If the app already exists, `fly deploy` is sufficient. The Docker image
-serves the PHP API on port 80. `EBIRD_API_KEY` is stored as a Fly secret, so
-it must not be committed to `avian/data/ebird.json`.
-
-After deployment, note the backend URL, such as:
-
-```text
-https://avianvisitors-ebird.fly.dev
-```
-
-### Deploy the frontend to GitHub Pages
-
-Before publishing the frontend, edit `avian/frontend/config.js` and set
-`window.AV_API_BASE` to the Fly backend URL:
-
-```js
-window.AV_API_BASE = 'https://avianvisitors-ebird.fly.dev';
-```
-
-Publish the contents of `avian/frontend/` as the GitHub Pages site. If using
-GitHub Actions, configure the workflow to upload that directory as the Pages
-artifact. If using the repository Pages branch, copy the contents of
-`avian/frontend/` into the published directory.
-
-The API allows cross-origin requests by default. To restrict access to the
-GitHub Pages site, set the exact Pages origin as a Fly secret and redeploy:
+For a separate static frontend, create a complete publication directory:
 
 ```bash
-fly secrets set AV_CORS_ORIGIN=https://your-user.github.io
+node scripts/package-static.mjs
 ```
 
-For a project Pages site, include the repository path in the origin only when
-configuring frontend URLs; the origin itself remains the scheme and hostname,
-for example `https://your-user.github.io`.
+Set `static-site/config.js` to the existing backend URL using
+`window.AV_API_BASE`, then publish **all of `static-site/`**, including its
+`avian/assets/` tree. Keep the frontend origin unchanged to preserve returning
+visitors' browser preferences. Set backend `AV_CORS_ORIGIN` to that frontend's
+scheme and hostname when restricting CORS.
+
+Run `npm run typecheck`, `npm test`, and `npm run test:browser` to verify changes.
+See [runtime and release instructions](docs/runtime.md) for configuration,
+Docker, static hosting, candidate smoke checks and rollback. Production cutover
+requires a release instruction; building or testing a candidate does not deploy it.
 
 ## License
 

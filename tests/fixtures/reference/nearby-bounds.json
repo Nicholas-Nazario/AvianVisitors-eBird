@@ -1,0 +1,91 @@
+{
+  "input": {
+    "name": "nearby-bounds",
+    "query": "action=nearby-species&speciesCode=amecro&lat=999&lng=-999&back=99&dist=99&maxResults=99999",
+    "rows": [
+      {
+        "sciName": " Corvus brachyrhynchos ",
+        "comName": " American Crow ",
+        "speciesCode": " amecro ",
+        "howMany": 0,
+        "obsDt": "2026-10-21 11:30",
+        "locId": "L1",
+        "locName": " Near ",
+        "lat": 40.794618,
+        "lng": -73.959878
+      },
+      {
+        "sciName": "Corvus brachyrhynchos",
+        "comName": "American Crow",
+        "speciesCode": "amecro",
+        "howMany": 3,
+        "obsDt": "2026-10-20 12:00",
+        "locId": "L2",
+        "locName": "Far",
+        "lat": 41,
+        "lng": -74
+      },
+      {
+        "sciName": "Corvus brachyrhynchos",
+        "comName": "Crow",
+        "howMany": -7,
+        "obsDt": "2026-10-20 11:59",
+        "locId": "L2",
+        "locName": "Far"
+      },
+      {
+        "sciName": "Turdus migratorius",
+        "comName": "American Robin",
+        "speciesCode": "amerob",
+        "howMany": null,
+        "obsDt": "2026-10-21",
+        "locName": "No coordinates"
+      },
+      {
+        "sciName": "Poecile atricapillus",
+        "comName": "Black-capped Chickadee",
+        "howMany": "2.9",
+        "obsDt": "2026-10-22 10:00",
+        "locId": "L1",
+        "locName": "Near",
+        "lat": 40.794618,
+        "lng": -73.959878
+      },
+      {
+        "sciName": "Ignored invalid",
+        "obsDt": "not-a-date",
+        "howMany": 90
+      },
+      {
+        "sciName": "",
+        "obsDt": "2026-10-21 10:00",
+        "howMany": 2,
+        "locId": "L3"
+      }
+    ]
+  },
+  "expected": {
+    "status": 200,
+    "headers": [
+      "Access-Control-Allow-Origin: *",
+      "Access-Control-Allow-Methods: GET, OPTIONS",
+      "Access-Control-Allow-Headers: Content-Type",
+      "Content-Type: application/json; charset=utf-8",
+      "Cache-Control: no-store"
+    ],
+    "body": "{\"speciesCode\":\"amecro\",\"observations\":[{\"speciesCode\":\"amecro\",\"locId\":\"\",\"locName\":\"\",\"obsDt\":\"not-a-date\",\"howMany\":90},{\"speciesCode\":\"amecro\",\"locId\":\"L1\",\"locName\":\"Near\",\"obsDt\":\"2026-10-22 10:00\",\"howMany\":2},{\"speciesCode\":\"amecro\",\"locId\":\"L1\",\"locName\":\"Near\",\"obsDt\":\"2026-10-21 11:30\",\"howMany\":1},{\"speciesCode\":\"amecro\",\"locId\":\"L3\",\"locName\":\"\",\"obsDt\":\"2026-10-21 10:00\",\"howMany\":2},{\"speciesCode\":\"amerob\",\"locId\":\"\",\"locName\":\"No coordinates\",\"obsDt\":\"2026-10-21\",\"howMany\":null},{\"speciesCode\":\"amecro\",\"locId\":\"L2\",\"locName\":\"Far\",\"obsDt\":\"2026-10-20 12:00\",\"howMany\":3},{\"speciesCode\":\"amecro\",\"locId\":\"L2\",\"locName\":\"Far\",\"obsDt\":\"2026-10-20 11:59\",\"howMany\":1}],\"as_of\":\"2026-10-21T12:00:00+00:00\",\"source\":\"ebird\"}",
+    "requests": [
+      {
+        "url": "https://api.ebird.org/v2/data/obs/geo/recent/amecro?lat=90&lng=-180&back=30&dist=50&maxResults=10000&hotspot=true",
+        "context": {
+          "http": {
+            "method": "GET",
+            "header": "X-eBirdApiToken: synthetic-token\r\nAccept: application/json\r\n",
+            "timeout": 20,
+            "ignore_errors": true
+          }
+        }
+      }
+    ]
+  }
+}

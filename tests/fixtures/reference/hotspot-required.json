@@ -1,0 +1,79 @@
+{
+  "input": {
+    "name": "hotspot-required",
+    "query": "mode=hotspot",
+    "rows": [
+      {
+        "sciName": " Corvus brachyrhynchos ",
+        "comName": " American Crow ",
+        "speciesCode": " amecro ",
+        "howMany": 0,
+        "obsDt": "2026-10-21 11:30",
+        "locId": "L1",
+        "locName": " Near ",
+        "lat": 40.794618,
+        "lng": -73.959878
+      },
+      {
+        "sciName": "Corvus brachyrhynchos",
+        "comName": "American Crow",
+        "speciesCode": "amecro",
+        "howMany": 3,
+        "obsDt": "2026-10-20 12:00",
+        "locId": "L2",
+        "locName": "Far",
+        "lat": 41,
+        "lng": -74
+      },
+      {
+        "sciName": "Corvus brachyrhynchos",
+        "comName": "Crow",
+        "howMany": -7,
+        "obsDt": "2026-10-20 11:59",
+        "locId": "L2",
+        "locName": "Far"
+      },
+      {
+        "sciName": "Turdus migratorius",
+        "comName": "American Robin",
+        "speciesCode": "amerob",
+        "howMany": null,
+        "obsDt": "2026-10-21",
+        "locName": "No coordinates"
+      },
+      {
+        "sciName": "Poecile atricapillus",
+        "comName": "Black-capped Chickadee",
+        "howMany": "2.9",
+        "obsDt": "2026-10-22 10:00",
+        "locId": "L1",
+        "locName": "Near",
+        "lat": 40.794618,
+        "lng": -73.959878
+      },
+      {
+        "sciName": "Ignored invalid",
+        "obsDt": "not-a-date",
+        "howMany": 90
+      },
+      {
+        "sciName": "",
+        "obsDt": "2026-10-21 10:00",
+        "howMany": 2,
+        "locId": "L3"
+      }
+    ]
+  },
+  "expected": {
+    "status": 400,
+    "headers": [
+      "Access-Control-Allow-Origin: *",
+      "Access-Control-Allow-Methods: GET, OPTIONS",
+      "Access-Control-Allow-Headers: Content-Type",
+      "Content-Type: application/json; charset=utf-8",
+      "Cache-Control: public, max-age=30"
+    ],
+    "body": "{\"error\":\"at least one regionCode is required for hotspot mode\"}",
+    "requests": []
+  }
+}

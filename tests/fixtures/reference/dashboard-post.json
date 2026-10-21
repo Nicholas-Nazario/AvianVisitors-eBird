@@ -1,0 +1,92 @@
+{
+  "input": {
+    "name": "dashboard-post",
+    "method": "POST",
+    "query": "",
+    "rows": [
+      {
+        "sciName": " Corvus brachyrhynchos ",
+        "comName": " American Crow ",
+        "speciesCode": " amecro ",
+        "howMany": 0,
+        "obsDt": "2026-10-21 11:30",
+        "locId": "L1",
+        "locName": " Near ",
+        "lat": 40.794618,
+        "lng": -73.959878
+      },
+      {
+        "sciName": "Corvus brachyrhynchos",
+        "comName": "American Crow",
+        "speciesCode": "amecro",
+        "howMany": 3,
+        "obsDt": "2026-10-20 12:00",
+        "locId": "L2",
+        "locName": "Far",
+        "lat": 41,
+        "lng": -74
+      },
+      {
+        "sciName": "Corvus brachyrhynchos",
+        "comName": "Crow",
+        "howMany": -7,
+        "obsDt": "2026-10-20 11:59",
+        "locId": "L2",
+        "locName": "Far"
+      },
+      {
+        "sciName": "Turdus migratorius",
+        "comName": "American Robin",
+        "speciesCode": "amerob",
+        "howMany": null,
+        "obsDt": "2026-10-21",
+        "locName": "No coordinates"
+      },
+      {
+        "sciName": "Poecile atricapillus",
+        "comName": "Black-capped Chickadee",
+        "howMany": "2.9",
+        "obsDt": "2026-10-22 10:00",
+        "locId": "L1",
+        "locName": "Near",
+        "lat": 40.794618,
+        "lng": -73.959878
+      },
+      {
+        "sciName": "Ignored invalid",
+        "obsDt": "not-a-date",
+        "howMany": 90
+      },
+      {
+        "sciName": "",
+        "obsDt": "2026-10-21 10:00",
+        "howMany": 2,
+        "locId": "L3"
+      }
+    ]
+  },
+  "expected": {
+    "status": 200,
+    "headers": [
+      "Access-Control-Allow-Origin: *",
+      "Access-Control-Allow-Methods: GET, OPTIONS",
+      "Access-Control-Allow-Headers: Content-Type",
+      "Content-Type: application/json; charset=utf-8",
+      "Cache-Control: public, max-age=30"
+    ],
+    "body": "{\"recent\":{\"hours\":24,\"species\":[{\"sci\":\"Poecile atricapillus\",\"com\":\"Black-capped Chickadee\",\"speciesCode\":\"\",\"n\":2,\"last_observed\":\"2026-10-22 10:00\",\"last_locName\":\"Near\",\"first_observed\":\"2026-10-22 10:00\",\"best_conf\":null,\"top_file\":null,\"top_at\":\"2026-10-22 10:00\"},{\"sci\":\"Corvus brachyrhynchos\",\"com\":\"American Crow\",\"speciesCode\":\"amecro\",\"n\":4,\"last_observed\":\"2026-10-21 11:30\",\"last_locName\":\" Near \",\"first_observed\":\"2026-10-20 12:00\",\"best_conf\":null,\"top_file\":null,\"top_at\":\"2026-10-21 11:30\"},{\"sci\":\"Turdus migratorius\",\"com\":\"American Robin\",\"speciesCode\":\"amerob\",\"n\":1,\"last_observed\":\"2026-10-21\",\"last_locName\":\"No coordinates\",\"first_observed\":\"2026-10-21\",\"best_conf\":null,\"top_file\":null,\"top_at\":\"2026-10-21\"}],\"hotspots\":[{\"locId\":\"L1\",\"locName\":\"Near\",\"lat\":40.794618,\"lng\":-73.959878,\"n\":3,\"last_observed\":\"2026-10-22 10:00\",\"species\":[{\"sci\":\"Poecile atricapillus\",\"com\":\"Black-capped Chickadee\",\"n\":2,\"last_observed\":\"2026-10-22 10:00\"},{\"sci\":\"Corvus brachyrhynchos\",\"com\":\"American Crow\",\"n\":1,\"last_observed\":\"2026-10-21 11:30\"}],\"distance_km\":0},{\"locId\":\"L2\",\"locName\":\"Far\",\"lat\":41,\"lng\":-74,\"n\":3,\"last_observed\":\"2026-10-20 12:00\",\"species\":[{\"sci\":\"Corvus brachyrhynchos\",\"com\":\"American Crow\",\"n\":3,\"last_observed\":\"2026-10-20 12:00\"}],\"distance_km\":23.085107000990032},{\"locId\":null,\"locName\":\"No coordinates\",\"lat\":null,\"lng\":null,\"n\":1,\"last_observed\":\"2026-10-21\",\"species\":[{\"sci\":\"Turdus migratorius\",\"com\":\"American Robin\",\"n\":1,\"last_observed\":\"2026-10-21\"}],\"distance_km\":null}],\"as_of\":\"2026-10-21T12:00:00+00:00\",\"source\":\"ebird\"},\"timeseries\":{\"days\":30,\"daily\":[{\"date\":\"2026-10-20\",\"observations\":4,\"species\":1},{\"date\":\"2026-10-21\",\"observations\":4,\"species\":2},{\"date\":\"2026-10-22\",\"observations\":2,\"species\":1}],\"by_hour\":[{\"hour\":0,\"observations\":1},{\"hour\":10,\"observations\":4},{\"hour\":11,\"observations\":2},{\"hour\":12,\"observations\":3}],\"as_of\":\"2026-10-21T12:00:00+00:00\",\"source\":\"ebird\"},\"as_of\":\"2026-10-21T12:00:00+00:00\",\"source\":\"ebird\"}",
+    "requests": [
+      {
+        "url": "https://api.ebird.org/v2/data/obs/geo/recent?lat=40.794618&lng=-73.959878&dist=3&sort=date&hotspot=true&back=30",
+        "context": {
+          "http": {
+            "method": "GET",
+            "header": "X-eBirdApiToken: synthetic-token\r\nAccept: application/json\r\n",
+            "timeout": 20,
+            "ignore_errors": true
+          }
+        }
+      }
+    ]
+  }
+}

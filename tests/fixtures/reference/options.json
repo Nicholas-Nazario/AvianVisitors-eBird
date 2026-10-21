@@ -1,0 +1,19 @@
+{
+  "input": {
+    "name": "options",
+    "query": "",
+    "rows": [],
+    "token": "",
+    "method": "OPTIONS"
+  },
+  "expected": {
+    "status": 204,
+    "headers": [
+      "Access-Control-Allow-Origin: *",
+      "Access-Control-Allow-Methods: GET, OPTIONS",
+      "Access-Control-Allow-Headers: Content-Type"
+    ],
+    "body": "",
+    "requests": []
+  }
+}

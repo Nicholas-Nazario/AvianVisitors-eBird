@@ -4,6 +4,12 @@
 .codex
 .local-serve
 node_modules
+dist
+tests
+test-results
+playwright-report
+coverage
+static-site
 __pycache__
 *.pyc
 
@@ -11,3 +17,8 @@ __pycache__
 avian/data/ebird.json
 avian/data/*cache*.json
 avian/data/ebird-hotspots-*.json
+avian/data/cutouts
+avian/assets/references
+avian/assets/_legacy
+avian/scripts
+docs/agent-instructions

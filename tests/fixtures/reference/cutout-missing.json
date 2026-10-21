@@ -1,0 +1,18 @@
+{
+  "input": {
+    "name": "cutout-missing",
+    "endpoint": "cutout.php",
+    "query": "sci=Test%20species",
+    "rows": []
+  },
+  "expected": {
+    "status": 404,
+    "headers": [
+      "Access-Control-Allow-Origin: *",
+      "Access-Control-Allow-Methods: GET, OPTIONS",
+      "Access-Control-Allow-Headers: Content-Type"
+    ],
+    "body": "no illustration bundled for Test species (install rembg-cli to enable Wikipedia fallback)",
+    "requests": []
+  }
+}

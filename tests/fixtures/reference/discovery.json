@@ -1,0 +1,40 @@
+{
+  "input": {
+    "name": "discovery",
+    "query": "action=hotspots&mode=hotspot",
+    "rows": [
+      {
+        "locId": "L1",
+        "locName": "Fixture",
+        "lat": "40.0",
+        "extra": {
+          "untouched": true
+        }
+      }
+    ]
+  },
+  "expected": {
+    "status": 200,
+    "headers": [
+      "Access-Control-Allow-Origin: *",
+      "Access-Control-Allow-Methods: GET, OPTIONS",
+      "Access-Control-Allow-Headers: Content-Type",
+      "Content-Type: application/json; charset=utf-8",
+      "Cache-Control: public, max-age=30"
+    ],
+    "body": "{\"hotspots\":[{\"locId\":\"L1\",\"locName\":\"Fixture\",\"lat\":\"40.0\",\"extra\":{\"untouched\":true}}],\"as_of\":\"2026-10-21T12:00:00+00:00\"}",
+    "requests": [
+      {
+        "url": "https://api.ebird.org/v2/ref/hotspot/geo?lat=40.794618&lng=-73.959878&dist=3&fmt=json",
+        "context": {
+          "http": {
+            "method": "GET",
+            "header": "X-eBirdApiToken: synthetic-token\r\nAccept: application/json\r\n",
+            "timeout": 20,
+            "ignore_errors": true
+          }
+        }
+      }
+    ]
+  }
+}
