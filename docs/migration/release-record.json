@@ -15,7 +15,10 @@
   "localImageId": "sha256:e97410a339572e21f502a83b7d068c0656fe4f9016d480da96f8260bf7bd0937",
   "localImagePlatform": "linux/arm64",
   "localContainerChecks": 38,
-  "localBrowserChecks": 36,
+  "localBrowserChecks": 70,
   "localOfflineTestsPassed": 114,
-  "localOptionalRendererPassed": true
+  "localOptionalRendererPassed": true,
+  "localBrowserSkipped": 2,
+  "localVisualComparisons": 72,
+  "productionLoadedClientHandover": "passed in Chromium/Firefox/WebKit via browser-only API interception"
 }

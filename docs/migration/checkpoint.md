@@ -1,6 +1,6 @@
 # Resume checkpoint — 2026-10-21 final local verification
 
-Migration implementation and packaging are saved as **uncommitted working-tree changes**. No production deployment, remote candidate, registry push, secret change or rollback occurred. Local verification is complete for the enumerated matrix; release acceptance remains pending. Do not repeat the broad repository audit.
+Migration implementation and packaging are committed in PR #9 on `migrate/express-typescript-backend`; additional browser-verification changes are recorded in additional-acceptance.md. No production deployment, remote candidate, registry push, secret change or rollback occurred. Local verification is complete for the enumerated matrix; release acceptance remains pending. Do not repeat the broad repository audit.
 
 ## Preserved baseline and completed changes
 
@@ -48,3 +48,10 @@ Browser engines remain in user Library cache. Docker/Colima installed via Homebr
 Concrete procedure: rollout-rollback.md. Baseline port80 configuration saved as rollback.fly.toml; Express uses8080. release-record.json records local results and leaves remote unknowns null.
 
 Authenticated Fly access/release environment must provide previous pullable immutable image, actual platform/non-secret configuration/renderer/proxy inspection and a separately authorized candidate. Match image platform, record registry digest, then run remote real eBird/proxy/old-open-client/refresh and resource checks. Actual pre-cutover open tab, cached production bundle, native geolocation permission UI and exhaustive visual/graph/silhouette matrix remain unexecuted, explicitly recorded in coverage.md. Do not infer exhaustive parity or deployed completion from the passing functional matrix. Production release and rollback require the separate release instruction.
+
+
+## PR follow-up verification
+
+Follow-up source: tests/browser/remaining-features.spec.ts; exact results and remaining gates: additional-acceptance.md and visual-comparisons.json. The original36 browser scenarios expanded with custom boundaries, exact stats/top-ten/highlights, silhouette count/click, native browser geolocation, controlled proxy and actual production-loaded client handover. Twelve visual scenarios supply72 cold/refreshed screenshot pairs with zero pixel difference. No application/frontend/artwork changes. Earlier gap lists above are historical; use coverage.md for current disposition. Production client handover was browser-local interception, not a deployment. No eBird token/config or Fly authentication is available here, so real remote gates remain.
+
+Final follow-up combined run:70 passed,2 explicit Firefox/WebKit browser-denial skips, zero failures (2.0m), with AV_LIVE_CLIENT=1. Typecheck and845 public hashes pass. Added verification is committed to the same PR #9; no app/frontend/artwork changes.

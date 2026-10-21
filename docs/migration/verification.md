@@ -10,7 +10,7 @@ Status: local backend migration verified; remote release acceptance pending. No 
 | Typecheck/build | `npm run typecheck`, `npm run build` passed after PHP removal |
 | Offline service/HTTP/hash suite | 114 passed / 1 optional renderer skipped after PHP removal, including added HEAD/all-method/CORS check |
 | Independent baseline contracts | 57 unchanged PHP response captures + 845-file hash assertion pass within suite |
-| Browser | Agent final serial run 36/36 passed; lead independent rerun 36/36 passed (38.4s), 12 scenarios × Chromium/Firefox/WebKit |
+| Browser | Latest combined run:70 passed,2 explicit browser-denial skips (2.0m); includes all36 original checks,34 added checks and72 exact screenshot comparisons |
 | Optional equipped renderer | Real rembg 2.0.86/u2netp/-ppm HTTP→subprocess→PNG→atomic cache passed separately; lead independent final rerun 1/1 passed (2.63s) |
 | GD PNG parity | 14 independent PHP GD fixtures match decoded geometry/pixels exactly; palette/tRNS regression found and fixed |
 | Subprocess cleanup | Actual in-flight child PID terminated through production shutdown export; request finishes and temporary files removed |
@@ -34,6 +34,13 @@ Public existing production root returned200. OPTIONS birdnet returned204 with `*
 
 Lead read all handoffs, reviewed shared config/query/transport/app/index and packaging, inspected added cache/browser/renderer tests and PNG fix, independently reran integration. Test expectations remain PHP-derived. PHP deletion occurred only after independent contracts, image fixtures, browser evidence and rebuilt-container replacement checks; five deleted files were birdnet-api.php, bootstrap.php, cutout.php, wiki.php and menu.php. Compatibility URL strings remain direct Express routes.
 
-coverage.md and browser-acceptance.md enumerate unexecuted visual/native-permission/live-client branches. The optional renderer remains omitted from default production image as before; actual deployed renderer/proxy configuration remains unknown. Arbitrary PHP natural-language date grammar is broader than the captured eBird calendar formats. No unexplained failure is hidden as a pass. A focused/full Playwright collision produced artifact-directory ENOENT during agent development; the final serial run passed and is the recorded result.
+coverage.md and additional-acceptance.md enumerate the remaining OS/remote gates; the follow-up closes the scoped visual/functional/open-client gaps. The optional renderer remains omitted from default production image as before; actual deployed renderer/proxy configuration remains unknown. Arbitrary PHP natural-language date grammar is broader than the captured eBird calendar formats. No unexplained failure is hidden as a pass. A focused/full Playwright collision produced artifact-directory ENOENT during agent development; the final serial run passed and is the recorded result.
 
 rollout-rollback.md, rollback.fly.toml and release-record.json prepare the release. Authenticated previous digest availability, platform/config inspection, remote candidate, real proxy/credential/live-old-tab checks, registry image digest and cutover/rollback observations remain release gates. Rollback must restore baseline port80 as well as old image; Express uses8080. Do not mark deployed migration complete until authorized release observations pass.
+
+
+## Follow-up checks after PR creation
+
+Added remaining-features.spec.ts and additional-acceptance.md. All72 cold/refreshed screenshot-pair comparisons pass against independent PHP response data; visual-comparisons.json records each browser/viewport/theme and the separate existing mobile Chromium cold/refresh distinction. Typecheck passes. Actual production HTML/JS/CSS hashes match baseline, and an already-open production-loaded client passed browser-only handover to local Express in all three engines. Controlled forwarded-mode proxy tests exercise real401 and Authorization-bearing menuPOST requests. No application/frontend/artwork changes, runtime image changes or production writes. The existing114 offline and38 container results remain applicable; these were not rerun solely for browser-test additions.
+
+Final combined browser run:70 passed,2 explicit skips, zero failures (2.0m); see additional-acceptance.md. Native OS permission/background behavior, actual remote proxy/renderer/platform and credentialed eBird/candidate/immutable rollback-image checks remain gates. No local eBird key/configuration or Fly authentication was available.
