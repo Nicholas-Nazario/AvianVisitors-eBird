@@ -1870,13 +1870,13 @@
 
 /* ============ AvianVisitors mode toggle ============
  * Default install (body.av-local): hide the lock-row, show drawer items
- * directly when the menu opens. The PHP shim at /avian/api/menu.php
+ * directly when the menu opens. The server endpoint at /avian/api/menu
  * returns items immediately with no auth, so the live JS skips the lock
  * flow entirely.
  *
  * Forwarded install (body.av-forwarded): show the lock row so users
  * type the basic-auth password before items unlock. Pair with
- * AV_REQUIRE_AUTH=1 in php-fpm env + Caddy basic_auth on /avian/api/.
+ * AV_REQUIRE_AUTH=1 in server environment + Caddy basic_auth on /avian/api/.
  * See avian/forwarding/. */
 body.av-local #location-locked,
 body.av-local #refresh-locked { display: none; }

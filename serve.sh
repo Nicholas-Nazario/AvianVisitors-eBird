@@ -1,50 +1,23 @@
 #!/usr/bin/env bash
-# Build the local web root and serve the collage at http://localhost:8080
+# Serve the existing frontend and Express API at http://localhost:8080.
 set -euo pipefail
-
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-SERVE="$ROOT/.local-serve"
-DATA="$ROOT/avian/data"
-PORT="${PORT:-8080}"
-
-if ! command -v php >/dev/null 2>&1; then
-  echo "php is required (e.g. brew install php)" >&2
+cd "$ROOT"
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  echo 'Node.js 24.22.1 and npm are required.' >&2
   exit 1
 fi
-
-mkdir -p "$SERVE" "$DATA"
-
-if [[ ! -f "$DATA/ebird.json" ]]; then
-  if [[ -n "${EBIRD_API_KEY:-}" ]]; then
-    python3 - <<PY
-import json, os
-cfg = {
-  "lat": 40.794618,
-  "lng": -73.959878,
-  "dist": 3,
-  "hotspot": True,
-  "back": 30,
-  "token": os.environ["EBIRD_API_KEY"],
-}
-open("$DATA/ebird.json", "w").write(json.dumps(cfg, indent=2) + "\n")
-print("wrote $DATA/ebird.json from EBIRD_API_KEY")
-PY
-  else
-    cp "$DATA/ebird.example.json" "$DATA/ebird.json"
-    echo "created $DATA/ebird.json — set \"token\" (or export EBIRD_API_KEY) before loading birds" >&2
-  fi
+if [[ "$(node -p 'process.versions.node')" != '24.22.1' ]]; then
+  echo 'Use Node.js 24.22.1 (see .node-version).' >&2
+  exit 1
 fi
-
-link() { ln -sfn "$1" "$2"; }
-link "$ROOT/avian/frontend/index.html" "$SERVE/index.html"
-link "$ROOT/avian/frontend/apt.js"     "$SERVE/apt.js"
-link "$ROOT/avian/frontend/styles.css" "$SERVE/styles.css"
-link "$ROOT/avian/frontend/dims.json"  "$SERVE/dims.json"
-link "$ROOT/avian/frontend/masks.json" "$SERVE/masks.json"
-link "$ROOT/avian/frontend/nest.webp"  "$SERVE/nest.webp"
-link "$ROOT/avian/assets/favicon.png"  "$SERVE/favicon.png"
-link "$ROOT/avian"                     "$SERVE/avian"
-
-echo "serving http://localhost:$PORT  (Ctrl-C to stop)"
-cd "$SERVE"
-exec php -S "localhost:$PORT"
+if [[ ! -d node_modules ]]; then npm ci; fi
+TASK_DATA="${AV_DATA_DIR:-$ROOT/avian/data}"
+mkdir -p "$TASK_DATA"
+if [[ ! -f "$TASK_DATA/ebird.json" ]]; then
+  cp "$ROOT/avian/data/ebird.example.json" "$TASK_DATA/ebird.json"
+  echo 'Created ebird.json from the example. Set its token or export EBIRD_API_KEY to load birds.' >&2
+fi
+export HOST="${HOST:-localhost}"
+npm run build
+exec node dist/server/index.js
