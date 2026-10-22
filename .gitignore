@@ -33,3 +33,7 @@ test-results/
 coverage/
 avian/data/cutouts/
 static-site/
+
+# Local environment secrets
+.env
+.env.*

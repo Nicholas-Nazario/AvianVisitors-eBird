@@ -13,6 +13,11 @@ export EBIRD_API_KEY=your_key
 ./serve.sh
 ```
 
+Alternatively, put `EBIRD_API_KEY=your_key` in a `.env` file at the repository
+root and run `./serve.sh`. The launcher loads it automatically; exported
+environment variables take priority. Local `.env` files are excluded from Git
+and Docker builds.
+
 Open http://localhost:8080/. Existing `avian/data/ebird.json` configuration and
 cache files remain supported. Alternatively copy `avian/data/ebird.example.json`
 to `avian/data/ebird.json` and edit its token. Environment credentials are read

@@ -22,3 +22,7 @@ avian/assets/references
 avian/assets/_legacy
 avian/scripts
 docs/agent-instructions
+
+# Local environment secrets
+.env
+.env.*

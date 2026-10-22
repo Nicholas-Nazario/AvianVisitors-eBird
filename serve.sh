@@ -20,4 +20,4 @@ if [[ ! -f "$TASK_DATA/ebird.json" ]]; then
 fi
 export HOST="${HOST:-localhost}"
 npm run build
-exec node dist/server/index.js
+exec node --env-file-if-exists="$ROOT/.env" dist/server/index.js
