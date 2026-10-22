@@ -1,7 +1,7 @@
 {
   "input": {
     "name": "cutout-invalid",
-    "endpoint": "cutout.php",
+    "endpoint": "cutout",
     "query": "sci=bad",
     "rows": []
   },

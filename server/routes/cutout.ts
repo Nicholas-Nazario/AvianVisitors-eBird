@@ -3,7 +3,7 @@ import { constants } from 'node:fs';
 import { access, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Dependencies } from '../contracts.js';
-import { phpInt, phpTruthy } from '../http/query.js';
+import { legacyInt, isTruthy } from '../http/query.js';
 import { allowedPhoto, scientificName, summaryUrl, validName } from '../images/common.js';
 import { pngProcessor } from '../images/process.js';
 import { renderImage } from '../images/renderer.js';
@@ -16,7 +16,7 @@ export function createCutoutRouter(deps: Dependencies): Router {
     const sci=scientificName(req.query.sci);
     if(!sci||!validName(sci)) {error(res,400,sci?'invalid sci':'sci required');return;}
     const slug=sci.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-    let pose=req.query.pose===undefined?1:phpInt(req.query.pose);if(pose<1||pose>99)pose=1;
+    let pose=req.query.pose===undefined?1:legacyInt(req.query.pose);if(pose<1||pose>99)pose=1;
     const assets=path.join(deps.config.rootDir,'avian/assets');
     const candidates=[path.join(assets,'illustrations',slug+(pose===1?'':`-${pose}`)+'.png')];
     if(pose!==1)candidates.push(path.join(assets,'illustrations',slug+'.png'));
@@ -26,7 +26,7 @@ export function createCutoutRouter(deps: Dependencies): Router {
     const options={headers:{'User-Agent':deps.config.userAgent},timeoutMs:12000};
     let source: unknown;
     try {const response=await deps.http(summaryUrl(sci),options);if(response.status<400){const data=JSON.parse(response.body.toString());source=data?.originalimage?.source??data?.thumbnail?.source;}} catch { /* missing photo */ }
-    if(!phpTruthy(source)||!allowedPhoto(source)) {error(res,404,`no Wikipedia photo for ${sci}`);return;}
+    if(!isTruthy(source)||!allowedPhoto(source)) {error(res,404,`no Wikipedia photo for ${sci}`);return;}
     let photo: Buffer;
     try {const response=await deps.http(String(source),options);if(response.status>=400||response.body.length<1024)throw new Error('photo');photo=response.body;} catch {error(res,503,'failed to fetch source image');return;}
     let temporary: string|undefined;

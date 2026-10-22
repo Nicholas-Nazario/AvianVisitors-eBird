@@ -41,7 +41,7 @@ serve.sh         # local Node launcher
 eBird `sciName` → illustration slug (`Branta canadensis` → `branta-canadensis.png`).
 `howMany` sums into collage weight `n`; `obsDt` becomes `last_observed`.
 
-## API (`avian/api/birdnet-api.php`)
+## API (`avian/api/birdnet-api`)
 
 The collage frontend requests `dashboard` on page load, when the selected
 location or mode changes, and whenever the selected refresh interval fires
@@ -65,7 +65,7 @@ forces an upstream fetch.
 ## Hosting and verification
 
 The Node container serves both the frontend and the existing API URLs on port
-8080. The `.php` suffixes are compatibility URL names handled by Express.
+8080. The API uses extensionless Express routes.
 The Fly app remains `avianvisitors-ebird` in `ewr`, with the same hostname,
 HTTPS, health check and autoscaling configuration.
 
@@ -82,9 +82,10 @@ visitors' browser preferences. Set backend `AV_CORS_ORIGIN` to that frontend's
 scheme and hostname when restricting CORS.
 
 Run `npm run typecheck`, `npm test`, and `npm run test:browser` to verify changes.
-See [runtime and release instructions](docs/runtime.md) for configuration,
-Docker, static hosting, candidate smoke checks and rollback. Production cutover
-requires a release instruction; building or testing a candidate does not deploy it.
+Build the local container with `docker build -t avianvisitors:candidate .`.
+Run it on port8080 with the server-side eBird key. Publish frontend URL changes
+and backend routes together; older tabs need a reload. Building or testing a
+candidate does not deploy production.
 
 ## License
 

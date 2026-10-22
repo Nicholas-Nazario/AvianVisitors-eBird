@@ -1,7 +1,7 @@
 {
   "input": {
     "name": "cutout-missing",
-    "endpoint": "cutout.php",
+    "endpoint": "cutout",
     "query": "sci=Test%20species",
     "rows": []
   },

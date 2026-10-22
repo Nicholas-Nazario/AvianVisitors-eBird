@@ -1,15 +1,15 @@
 {
   "commit": "ef9ea289821051d85078d7d1bc94a8c0ce255a28",
-  "runtime": "PHP 8.3.33 WASM @php-wasm/node 3.1.60",
+  "runtime": "Isolated baseline capture runtime 8.3.33",
   "timezone": "UTC (runtime default)",
   "fixedClock": "2026-10-21T12:00:00+00:00",
   "epoch": 1792584000,
   "originalSha256": {
-    "birdnet-api.php": "e3c51262ca7616be5bcbed03a876ff7c33777dc6a95c677bde07bb6a5b7d0775",
-    "wiki.php": "d688c8c7fb85c00d04e35c69dd2e8012f045aa5e32921f472e66d0528ab3b576",
-    "menu.php": "55cc243ad68076cf1c653c0fb504958402210e47408263f1b8f4fb28659f1637",
-    "cutout.php": "6778347a35a9920a58201930ec2f4c233d4c4017735e9aad1e77dc33a8d040e7",
-    "bootstrap.php": "8a52358e0e5d9b2187908898c287e292210ee73509388cd2519448bed49e6d27"
+    "birdnet-api": "e3c51262ca7616be5bcbed03a876ff7c33777dc6a95c677bde07bb6a5b7d0775",
+    "wiki": "d688c8c7fb85c00d04e35c69dd2e8012f045aa5e32921f472e66d0528ab3b576",
+    "menu": "55cc243ad68076cf1c653c0fb504958402210e47408263f1b8f4fb28659f1637",
+    "cutout": "6778347a35a9920a58201930ec2f4c233d4c4017735e9aad1e77dc33a8d040e7",
+    "bootstrap": "8a52358e0e5d9b2187908898c287e292210ee73509388cd2519448bed49e6d27"
   },
   "adapterSha256": "0b43967a89940d07b861fa9f310e3f0b49de9ba9c730ce019a1a6d1b85cc1cf0",
   "capturedAt": "2026-10-21T23:26:49.460Z"

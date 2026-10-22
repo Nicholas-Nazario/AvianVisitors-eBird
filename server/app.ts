@@ -15,10 +15,10 @@ export function createApp(options: AppOptions = {}) {
   const app=express();
   app.disable('x-powered-by'); app.set('query parser',parseQuery);
   app.use('/avian/api',(_req,res,next)=>{res.set({'Access-Control-Allow-Origin':config.corsOrigin,'Access-Control-Allow-Methods':'GET, OPTIONS','Access-Control-Allow-Headers':'Content-Type'});if(_req.method==='OPTIONS'){res.status(204).end();return;}next();});
-  app.use('/avian/api/birdnet-api.php',createBirdnetRouter(deps));
-  app.use('/avian/api/wiki.php',createWikiRouter(deps));
-  app.use('/avian/api/cutout.php',createCutoutRouter(deps));
-  app.use('/avian/api/menu.php',createMenuRouter(deps));
+  app.use('/avian/api/birdnet-api',createBirdnetRouter(deps));
+  app.use('/avian/api/wiki',createWikiRouter(deps));
+  app.use('/avian/api/cutout',createCutoutRouter(deps));
+  app.use('/avian/api/menu',createMenuRouter(deps));
   const frontend=path.join(config.rootDir,'avian/frontend');
   const publicFiles=['index.html','apt.js','config.js','styles.css','dims.json','masks.json','nest.webp'];
   for(const filename of publicFiles) {

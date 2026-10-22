@@ -1,7 +1,7 @@
 {
   "input": {
     "name": "menu-post",
-    "endpoint": "menu.php",
+    "endpoint": "menu",
     "method": "POST",
     "query": "",
     "rows": []

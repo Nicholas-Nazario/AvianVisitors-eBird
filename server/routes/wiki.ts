@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Dependencies } from '../contracts.js';
 import { allowedPhoto, scientificName, summaryUrl, validName } from '../images/common.js';
-import { phpTruthy } from '../http/query.js';
+import { isTruthy } from '../http/query.js';
 export function createWikiRouter(deps: Dependencies): Router {
   const router=Router();
   router.all('/',async (req,res)=>{
@@ -16,7 +16,7 @@ export function createWikiRouter(deps: Dependencies): Router {
       if(data===null || typeof data!=='object') throw new Error('shape');
     } catch {res.json({extract:null,thumbnail:null});return;}
     const thumb=data.thumbnail?.source;
-    res.json({extract:data.extract??null,thumbnail:phpTruthy(thumb)&&allowedPhoto(thumb)?{source:thumb}:null,title:data.title??null});
+    res.json({extract:data.extract??null,thumbnail:isTruthy(thumb)&&allowedPhoto(thumb)?{source:thumb}:null,title:data.title??null});
   });
   return router;
 }

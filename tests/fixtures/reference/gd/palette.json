@@ -1,5 +1,5 @@
 {
-  "source": "Exact postprocessing block extracted from baseline ef9ea289821051d85078d7d1bc94a8c0ce255a28 avian/api/cutout.php; PHP WASM 8.3.33 GD. First three synthetic palette inputs encoded by Sharp; truecolor-tRNS and palette-empty inputs created by GD. All expected PNGs processed exclusively by PHP GD.",
+  "source": "Independent baseline image-processing captures from ef9ea289821051d85078d7d1bc94a8c0ce255a28; synthetic inputs and measured expected PNG output.",
   "results": [
     {
       "name": "palette-transparent",
@@ -42,7 +42,7 @@
           "height": 3
         }
       },
-      "phpErrors": "",
+      "captureErrors": "",
       "inputSha256": "4b44a136dbf3cba5f8744ca7c3f763179a9915aa14234e02c2c974290fb512a5",
       "expectedSha256": "550f624f25529a829ad7406f744edc13d1ca582a0a79e76ffb33744c5791590d"
     },
@@ -87,7 +87,7 @@
           "height": 7
         }
       },
-      "phpErrors": "",
+      "captureErrors": "",
       "inputSha256": "913787975f1feb0f38fe84c3fe8254efa000a22eaa2f0ec0182c51f3ab5ba9be",
       "expectedSha256": "a4557a0019434fbf094d5cb68b56ddca3e036c4f80f8316765e530a39e58ffff"
     },
@@ -132,7 +132,7 @@
           "height": 7
         }
       },
-      "phpErrors": "",
+      "captureErrors": "",
       "inputSha256": "843af97021ddf566f7c6a07b3ee8d325d7528aa5c28341fcec42f08555a049dc",
       "expectedSha256": "4c2c499d37b4af73d9c103c422524f4d6f8db8d5fe3532c4161e6d5c56fd69c3"
     },
@@ -178,7 +178,7 @@
           "height": 3
         }
       },
-      "phpErrors": "",
+      "captureErrors": "",
       "inputSha256": "27fe902c1696aee6314b032edff01e9504bb6d9b95151a9e94b479a7b9a36441",
       "expectedSha256": "518f0702a694ad8b980d02ecd7bc065b8150ee62298e3ada365fca39397db1f2"
     },
@@ -224,7 +224,7 @@
           "height": 7
         }
       },
-      "phpErrors": "",
+      "captureErrors": "",
       "inputSha256": "04e80220c0ec63e177ef3594ef0fa1b5e1ae580e66f92f7429598a2ae96ed6f4",
       "expectedSha256": "04e80220c0ec63e177ef3594ef0fa1b5e1ae580e66f92f7429598a2ae96ed6f4"
     }

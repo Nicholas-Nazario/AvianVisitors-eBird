@@ -104,7 +104,7 @@ test('automatic refresh pauses while hidden and catches up on return',async({pag
 test('late real dashboard response cannot replace a newer selected window',async({page})=>{
  await page.goto(base);await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');
  let release!:()=>void;const gate=new Promise<void>(resolve=>release=resolve);let arrived=false;
- await page.route('**/birdnet-api.php?**',async route=>{const url=new URL(route.request().url());if(url.searchParams.get('action')==='dashboard'&&url.searchParams.get('hours')==='168'){const response=await route.fetch();arrived=true;await gate;await route.fulfill({response});}else await route.continue();});
+ await page.route('**/birdnet-api?**',async route=>{const url=new URL(route.request().url());if(url.searchParams.get('action')==='dashboard'&&url.searchParams.get('hours')==='168'){const response=await route.fetch();arrived=true;await gate;await route.fulfill({response});}else await route.continue();});
  await page.locator('#winPick [data-h="168"]').click();await expect.poll(()=>arrived).toBe(true);await page.locator('#winPick [data-h="24"]').click();await page.locator('#slider [data-i="2"]').click();
  await expect(page.locator('#atlasGrid .bird-card[data-sci="Corvus brachyrhynchos"] .stat .n')).toHaveText('4');release();await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');await expect(page.locator('#atlasGrid .bird-card[data-sci="Corvus brachyrhynchos"] .stat .n')).toHaveText('4');await expect(page.locator('#winPick [data-h="24"]')).toHaveAttribute('aria-current','true');
 });

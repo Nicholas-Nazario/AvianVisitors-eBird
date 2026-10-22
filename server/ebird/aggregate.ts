@@ -1,10 +1,10 @@
-import { phpInt, phpNumeric, phpString, phpTrim, phpTruthy } from '../http/query.js';
+import { legacyInt, isNumeric, legacyString, trimAscii, isTruthy } from '../http/query.js';
 import { observationHour, parseObservationDate } from './time.js';
 export type Row = Record<string, unknown>;
-export function isPhpArray(value: unknown): value is Row | unknown[] {return value!==null&&typeof value==='object';}
-export function rows(value: unknown): Row[] {return isPhpArray(value)?Object.values(value).filter(isPhpArray) as Row[]:[];}
-const str=(value:unknown)=>phpString(value);
-const count=(row:Row)=>row.howMany==null?1:Math.max(1,phpInt(row.howMany));
+export function isCollection(value: unknown): value is Row | unknown[] {return value!==null&&typeof value==='object';}
+export function rows(value: unknown): Row[] {return isCollection(value)?Object.values(value).filter(isCollection) as Row[]:[];}
+const str=(value:unknown)=>legacyString(value);
+const count=(row:Row)=>row.howMany==null?1:Math.max(1,legacyInt(row.howMany));
 const cmp=(a:string,b:string)=>a<b?-1:a>b?1:0;
 export function filterHours(obs:Row[],hours:number,now:Date,timezone:string):Row[]{
   const cutoff=Math.floor(now.getTime()/1000)*1000-hours*3600000;
@@ -13,11 +13,11 @@ export function filterHours(obs:Row[],hours:number,now:Date,timezone:string):Row
 export function aggregateSpecies(obs:Row[]) {
   const by=new Map<string,{sci:string;com:string;speciesCode:string;n:number;last_observed:string;last_locName:unknown;first_observed:string;best_conf:null;top_file:null;top_at:string}>();
   for(const row of obs){
-    const sci=phpTrim(str(row.sciName));if(!sci)continue;
-    const com=phpTrim(str(row.comName??sci)),dt=str(row.obsDt);
+    const sci=trimAscii(str(row.sciName));if(!sci)continue;
+    const com=trimAscii(str(row.comName??sci)),dt=str(row.obsDt);
     let item=by.get(sci);
-    if(!item){item={sci,com,speciesCode:phpTrim(str(row.speciesCode)),n:0,last_observed:dt,last_locName:row.locName??null,first_observed:dt,best_conf:null,top_file:null,top_at:dt};by.set(sci,item);}
-    item.n+=count(row);if(phpTruthy(row.speciesCode))item.speciesCode=phpTrim(str(row.speciesCode));if(com)item.com=com;
+    if(!item){item={sci,com,speciesCode:trimAscii(str(row.speciesCode)),n:0,last_observed:dt,last_locName:row.locName??null,first_observed:dt,best_conf:null,top_file:null,top_at:dt};by.set(sci,item);}
+    item.n+=count(row);if(isTruthy(row.speciesCode))item.speciesCode=trimAscii(str(row.speciesCode));if(com)item.com=com;
     if(dt&&(!item.last_observed||cmp(dt,item.last_observed)>0)){item.last_observed=dt;item.last_locName=row.locName??null;item.top_at=dt;}
     if(dt&&(!item.first_observed||cmp(dt,item.first_observed)<0))item.first_observed=dt;
   }
@@ -33,10 +33,10 @@ export function aggregateHotspots(obs:Row[],originLat:number,originLng:number){
   type Hotspot={locId:string|null;locName:string;lat:number|null;lng:number|null;n:number;last_observed:string;species:Map<string,Species>};
   const by=new Map<string,Hotspot>();
   for(const row of obs){
-    const locId=phpTrim(str(row.locId)),locName=phpTrim(str(row.locName)),sci=phpTrim(str(row.sciName));
+    const locId=trimAscii(str(row.locId)),locName=trimAscii(str(row.locName)),sci=trimAscii(str(row.sciName));
     if((!locId&&!locName)||!sci)continue;
-    const key=locId||locName,com=phpTrim(str(row.comName??sci)),dt=str(row.obsDt),n=count(row);
-    const lat=phpNumeric(row.lat)?Number(row.lat):null,lng=phpNumeric(row.lng)?Number(row.lng):null;
+    const key=locId||locName,com=trimAscii(str(row.comName??sci)),dt=str(row.obsDt),n=count(row);
+    const lat=isNumeric(row.lat)?Number(row.lat):null,lng=isNumeric(row.lng)?Number(row.lng):null;
     let h=by.get(key);if(!h){h={locId:locId||null,locName:locName||key,lat,lng,n:0,last_observed:dt,species:new Map()};by.set(key,h);}
     h.n+=n;if(locName)h.locName=locName;if(h.lat===null&&lat!==null)h.lat=lat;if(h.lng===null&&lng!==null)h.lng=lng;
     if(dt&&(!h.last_observed||cmp(dt,h.last_observed)>0))h.last_observed=dt;

@@ -19,7 +19,7 @@ export function parseObservationDate(value: string, timezone: string): number | 
   if(month<1||month>12||day<1||day>31||hour>24||minute>59||second>60) return null;
   let wall=Date.UTC(year,month-1,day,hour,minute,second);
   if(m[7]) {const zone=m[7];if(zone!=='Z'){const z=/^([+-])(\d{2}):?(\d{2})$/.exec(zone)!;wall-=(z[1]==='-'?-1:1)*(+z[2]!*60 + +z[3]!)*60000;}return wall;}
-  // Compare both sides of a timezone transition. PHP selects the first fold
+  // Compare both sides of a timezone transition. The legacy contract selects the first fold
   // occurrence and advances nonexistent spring wall times through the gap.
   const offsets=new Set([-86400000,0,86400000].map(delta=>offset(new Date(wall+delta),timezone)));
   const candidates=[...offsets].map(o=>wall-o).sort((a,b)=>a-b);

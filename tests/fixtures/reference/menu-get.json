@@ -1,7 +1,7 @@
 {
   "input": {
     "name": "menu-get",
-    "endpoint": "menu.php",
+    "endpoint": "menu",
     "query": "",
     "rows": []
   },

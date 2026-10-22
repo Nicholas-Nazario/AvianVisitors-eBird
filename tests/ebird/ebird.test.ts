@@ -7,7 +7,7 @@ import os from 'node:os';
 import { loadConfig } from '../../server/config.js';
 import { parseQuery } from '../../server/http/query.js';
 import { createBirdnetRouter } from '../../server/routes/birdnet.js';
-import { cacheFilename, fetchCached, phpJson, roundCoordinate } from '../../server/ebird/cache.js';
+import { cacheFilename, fetchCached, cacheKeyJson, roundCoordinate } from '../../server/ebird/cache.js';
 import { parseObservationDate, formatTimestamp } from '../../server/ebird/time.js';
 import type { Dependencies } from '../../server/contracts.js';
 const dirs:string[]=[];
@@ -18,7 +18,7 @@ async function setup(){
   const deps:Dependencies={config,now:()=>new Date('2026-10-21T12:00:00Z'),http:vi.fn(async()=>({status:200,body:Buffer.from('[]')}))};
   const app=express();app.set('query parser',parseQuery);app.use('/',createBirdnetRouter(deps));return {deps,app,dir};
 }
-describe('independent PHP captures',()=>{
+describe('independent baseline captures',()=>{
   for(const name of ['dashboard-empty','dashboard-mixed','dashboard-coercion','species-exact','species-absent','species-limit','species-required','discovery','nearby-truncation','nearby-code-required','hotspot-batch','hotspot-required','invalid-region','unknown-action','upstream-error','invalid-json','missing-token']){
     it(name,async()=>{
       const fixture=JSON.parse(await readFile(path.join('tests/fixtures/reference',name+'.json'),'utf8'));
@@ -60,7 +60,7 @@ describe('legacy cache behavior',()=>{
     const {deps}=await setup(),config=deps.config.ebird;
     expect(cacheFilename('observations',config,'hotspot',['L1','L2'])).not.toBe(cacheFilename('observations',config,'hotspot',['L2','L1']));
     expect(cacheFilename('observations',config)).not.toBe(cacheFilename('observations',{...config,back:29}));
-    expect(roundCoordinate(-1.234565)).toBe(-1.23457);expect(phpJson([-0,0.000001,1])).toBe('[-0,1.0e-6,1]');
+    expect(roundCoordinate(-1.234565)).toBe(-1.23457);expect(cacheKeyJson([-0,0.000001,1])).toBe('[-0,1.0e-6,1]');
   });
   it('tolerates cache write failure and leaves no temporary file after success',async()=>{
     const {deps,dir}=await setup();deps.config.dataDir=path.join(dir,'missing');

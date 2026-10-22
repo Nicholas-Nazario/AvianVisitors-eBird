@@ -1,7 +1,7 @@
 {
   "input": {
     "name": "wiki-empty-object",
-    "endpoint": "wiki.php",
+    "endpoint": "wiki",
     "query": "sci=Corvus%20brachyrhynchos",
     "raw": "{}",
     "rows": []

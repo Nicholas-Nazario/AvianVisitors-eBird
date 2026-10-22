@@ -1,7 +1,7 @@
 {
   "input": {
     "name": "wiki-invalid",
-    "endpoint": "wiki.php",
+    "endpoint": "wiki",
     "query": "sci=bad",
     "rows": []
   },

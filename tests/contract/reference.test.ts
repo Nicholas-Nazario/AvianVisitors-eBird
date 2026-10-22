@@ -10,7 +10,7 @@ const fixtureDir=path.resolve('tests/fixtures/reference');
 type Capture={input:{name:string;endpoint?:string;query:string;rows:unknown;raw?:string;status?:number;transportFailure?:boolean;token?:string;method?:string;seedCache?:{filename:string;value:unknown}};expected:{status:number;headers:string[];body:string;requests:{url:string;context:{http:{timeout:number;header:string}}}[]}};
 const captures=readdirSync(fixtureDir).filter(n=>n.endsWith('.json')&&!['provenance.json','runtime-characterization.json','public-sha256.json'].includes(n)).map(n=>JSON.parse(readFileSync(path.join(fixtureDir,n),'utf8')) as Capture);
 function asJsonOrText(s:string):unknown{try{return JSON.parse(s);}catch{return s;}}
-describe('independent PHP reference HTTP contracts',()=>{
+describe('independent baseline reference HTTP contracts',()=>{
  for(const capture of captures) it(capture.input.name,async()=>{
   const {input,expected}=capture;
   const root=await mkdtemp(path.join(os.tmpdir(),'avian-contract-'));
@@ -21,7 +21,7 @@ describe('independent PHP reference HTTP contracts',()=>{
    config.ebird.token=input.token ?? 'synthetic-token';
    const calls:{url:string;options:{headers?:Record<string,string>;timeoutMs:number}}[]=[];
    const app=createApp({config,now:()=>new Date('2026-10-21T12:00:00Z'),http:async(url,options)=>{calls.push({url,options});if(input.transportFailure)throw new Error('synthetic transport failure');return {status:input.status ?? 200,body:Buffer.from(input.raw ?? JSON.stringify(input.rows))};}});
-   const endpoint='/avian/api/'+(input.endpoint ?? 'birdnet-api.php')+'?'+input.query;
+   const endpoint='/avian/api/'+(input.endpoint ?? 'birdnet-api')+'?'+input.query;
    const method=(input.method ?? 'GET').toLowerCase() as 'get'|'post'|'options';
    const response=await request(app)[method](endpoint);
    expect(response.status).toBe(expected.status);

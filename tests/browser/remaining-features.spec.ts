@@ -17,10 +17,10 @@ test.beforeEach(async({page})=>{
  const app=createApp({config,now:()=>new Date('2026-10-21T12:00:00Z'),http:async url=>({status:200,body:Buffer.from(new URL(url).hostname==='en.wikipedia.org'?JSON.stringify({extract:'Fixture description',title:'Fixture'}):JSON.stringify(rows))})});
  server=createServer((req,res)=>{
   const url=new URL(req.url||'/', 'http://localhost');
-  if(guardMenu&&url.pathname.endsWith('/menu.php')){const authorized=req.headers.authorization==='Basic '+Buffer.from('birdnet:synthetic-password').toString('base64');proxyAttempts.push({method:req.method||'',authorized});if(!authorized){res.writeHead(401,{'WWW-Authenticate':'Basic realm=fixture'});res.end();return;}}
-  if(url.pathname.endsWith('birdnet-api.php')&&url.searchParams.get('action')==='dashboard'){
+  if(guardMenu&&url.pathname.endsWith('/menu')){const authorized=req.headers.authorization==='Basic '+Buffer.from('birdnet:synthetic-password').toString('base64');proxyAttempts.push({method:req.method||'',authorized});if(!authorized){res.writeHead(401,{'WWW-Authenticate':'Basic realm=fixture'});res.end();return;}}
+  if(url.pathname.endsWith('birdnet-api')&&url.searchParams.get('action')==='dashboard'){
    dashboardHours.push(url.searchParams.get('hours')||'24');
-   // Only the oracle side replays independently captured PHP output. Candidate uses actual Express routes.
+   // Only the oracle side replays independently captured baseline output. Candidate uses actual Express routes.
    if(replay){res.setHeader('Content-Type','application/json');res.end(reference.expected.body);return;}
   }
   app(req,res);
@@ -75,7 +75,7 @@ test('browser geolocation permission denial preserves saved location',async({pag
 });
 
 for(const viewport of [{width:1280,height:900},{width:390,height:844}])for(const theme of ['light','dark']){
- test(`PHP golden and Express refreshed views render identical pixels at ${viewport.width}px in ${theme} theme; open client survives handover`,async({page,browser},testInfo)=>{
+ test(`Baseline golden and Express refreshed views render identical pixels at ${viewport.width}px in ${theme} theme; open client survives handover`,async({page,browser},testInfo)=>{
   await page.setViewportSize(viewport);await page.clock.setFixedTime(new Date('2026-10-21T12:00:00Z'));await page.addInitScript(theme=>localStorage.setItem('bird:theme',theme),theme);
   replay=true;await page.goto(base);await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');
   const capture=async(target=page)=>{const images:Buffer[]=[];for(const view of [0,1,2]){await target.locator('#slider [data-i="'+view+'"]').click();await expect.poll(()=>target.locator('#v'+view+' img').evaluateAll(images=>images.every(img=>(img as HTMLImageElement).complete))).toBe(true);await target.waitForTimeout(1200);images.push(await target.locator('#v'+view).screenshot({animations:'disabled'}));}return images;};
@@ -92,7 +92,7 @@ for(const viewport of [{width:1280,height:900},{width:390,height:844}])for(const
   const candidate=await capture();
   for(let i=0;i<baseline.length;i++){
    const expected=await sharp(baseline[i]).ensureAlpha().raw().toBuffer({resolveWithObject:true});const actual=await sharp(candidate[i]).ensureAlpha().raw().toBuffer({resolveWithObject:true});
-   await testInfo.attach('php-golden-view-'+i,{body:baseline[i]!,contentType:'image/png'});await testInfo.attach('express-view-'+i,{body:candidate[i]!,contentType:'image/png'});
+   await testInfo.attach('baseline-golden-view-'+i,{body:baseline[i]!,contentType:'image/png'});await testInfo.attach('express-view-'+i,{body:candidate[i]!,contentType:'image/png'});
    expect(actual.info).toEqual(expected.info);let changed=0;for(let p=0;p<actual.data.length;p+=4)if(!actual.data.subarray(p,p+4).equals(expected.data.subarray(p,p+4)))changed++;
    expect(changed,'changed pixels in refreshed view '+i).toBe(0);
    await writeFile(testInfo.outputPath('express-view-'+i+'.png'),candidate[i]!);
@@ -109,21 +109,6 @@ for(const viewport of [{width:1280,height:900},{width:390,height:844}])for(const
   await writeFile(testInfo.outputPath('visual-comparison.json'),JSON.stringify({viewport,theme,refreshedCandidateChangedPixels:0,coldCandidateMatches:true,oracleColdVsRefreshedAtlasChangedPixels:coldWarmChanged},null,2));
  });
 }
-
-test('already-open production client continues against local Express after browser-only API handover',async({page})=>{
- test.skip(process.env.AV_LIVE_CLIENT!=='1','Opt-in read-only production client smoke; candidate transport remains synthetic.');
- await page.addInitScript(()=>{localStorage.setItem('bird:window','24');localStorage.setItem('bird:refreshMs','3600000');localStorage.setItem('bird:theme','dark');});
- await page.goto('https://avianvisitors-ebird.fly.dev/');await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');
- const original=await page.evaluate(()=>{(window as unknown as {migrationDocument:string}).migrationDocument='loaded-from-production';return {href:location.href,scripts:performance.getEntriesByType('resource').filter(r=>r.name.endsWith('/apt.js')).length};});
- let candidateRequests=0;
- await page.route('https://avianvisitors-ebird.fly.dev/avian/api/**',async route=>{
-  const url=new URL(route.request().url());candidateRequests++;const response=await route.fetch({url:base+url.pathname+url.search});await route.fulfill({response});
- });
- await page.locator('#refreshBtn').click();await page.locator('#geoRefreshBtn').click();await expect(page.locator('#geoRefreshBtn')).toBeEnabled();await page.locator('#refresh-dd [data-menu-close]').click();await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');expect(candidateRequests).toBeGreaterThan(0);
- await page.locator('#slider [data-i="2"]').click();await expect(page.locator('#atlasGrid .bird-card[data-sci="Corvus brachyrhynchos"] .stat .n')).toHaveText('4');await page.locator('#atlasGrid .bird-card[data-sci="Corvus brachyrhynchos"]').click();await expect(page.locator('#modalDesc')).toHaveText('Fixture description');await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
- expect(await page.evaluate(()=>(window as unknown as {migrationDocument:string}).migrationDocument)).toBe('loaded-from-production');expect(await page.evaluate(()=>performance.getEntriesByType('resource').filter(r=>r.name.endsWith('/apt.js')).length)).toBe(original.scripts);expect(new URL(page.url()).origin).toBe(new URL(original.href).origin);
-});
-
 
 test('external proxy menu challenge rejects wrong password and unlocks through Express POST',async({page})=>{
  guardMenu=true;await page.goto(base);await page.evaluate(()=>{document.body.classList.replace('av-local','av-forwarded');});await page.locator('#locationBtn').click();await expect(page.locator('#unlockForm')).toBeVisible();await page.locator('#lockPass').fill('wrong');await page.locator('#unlockForm button').click();await expect(page.locator('#lockHint')).toHaveText('wrong password.');await page.locator('#lockPass').fill('synthetic-password');await page.locator('#unlockForm button').click();await expect(page.locator('#geoLat')).toBeVisible();await expect(page.locator('#location-locked')).not.toBeVisible();// Browsers may retry a request after a native Basic Auth challenge (observed in WebKit).

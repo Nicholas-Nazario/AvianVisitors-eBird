@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { loadConfig } from '../../server/config.js';
-import { cacheFilename, fetchCached, phpJson } from '../../server/ebird/cache.js';
+import { cacheFilename, fetchCached, cacheKeyJson } from '../../server/ebird/cache.js';
 import type { Dependencies } from '../../server/contracts.js';
 const roots:string[]=[];
 afterEach(async()=>{await Promise.all(roots.splice(0).map(root=>rm(root,{recursive:true,force:true})));});
@@ -54,9 +54,9 @@ describe.each(['observations','hotspots'] as const)('%s cache acceptance',kind=>
   for(const config of configs){const cached=JSON.parse(await readFile(path.join(root,cacheFilename(kind,config)),'utf8'));expect(cached.fetched_at).toBe(1792584000);expect(cached[field]).toHaveLength(1);expect(cached[field][0].lat).toBe(String(config.lat));}
  });
 });
-it('matches independently captured PHP number serialization and MD5 values',async()=>{
+it('matches independently captured baseline number serialization and MD5 values',async()=>{
  const reference=JSON.parse(await readFile('tests/fixtures/reference/runtime-characterization.json','utf8'));
- for(const row of reference.keys){const value=row.json==='[-0]'?-0:row.value;expect(phpJson([value])).toBe(row.json);expect(createHash('md5').update(phpJson([value])).digest('hex')).toBe(row.md5);}
+ for(const row of reference.keys){const value=row.json==='[-0]'?-0:row.value;expect(cacheKeyJson([value])).toBe(row.json);expect(createHash('md5').update(cacheKeyJson([value])).digest('hex')).toBe(row.md5);}
 });
 
 it('keeps ordered hotspot batches isolated from geographic and discovery caches',async()=>{
