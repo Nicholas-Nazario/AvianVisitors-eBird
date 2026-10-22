@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { loadConfig } from '../../server/config.js';
 import { parseQuery,queryValues,legacyInt,isNumeric } from '../../server/http/query.js';
-describe('legacy configuration and query foundations',()=>{
+describe('configuration and query parsing',()=>{
   it('merges local configuration and only nonempty environment tokens',async()=>{
     const root=await mkdtemp(path.join(os.tmpdir(),'avian-config-'));await mkdir(path.join(root,'avian/data'),{recursive:true});
     await writeFile(path.join(root,'avian/data/ebird.json'),JSON.stringify({token:'local',lat:1,extra:'retained'}));
@@ -18,7 +18,7 @@ describe('legacy configuration and query foundations',()=>{
     expect(queryValues(q.regionCode as Record<string,string>)).toEqual(['L4','L2','L3']);
     expect(queryValues(parseQuery('regionCode=old&regionCode[]=L1').regionCode as Record<string,string>)).toEqual(['L1']);
   });
-  it('retains legacy integer prefix conversion and numeric override rules',()=>{
+  it('handles integer prefix conversion and numeric override rules',()=>{
     expect(legacyInt('12birds')).toBe(12);expect(legacyInt('nonsense')).toBe(0);expect(legacyInt('1.2e2')).toBe(120);
     expect(isNumeric('12birds')).toBe(false);expect(isNumeric(' 1.2e2 ')).toBe(true);
   });

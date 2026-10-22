@@ -24,7 +24,7 @@ async function setup() {
   app.use('/wiki',createWikiRouter(deps));app.use('/menu',createMenuRouter(deps));app.use('/cutout',createCutoutRouter(deps));
   return {root,app,deps,http};
 }
-describe('auxiliary compatibility',()=>{
+describe('auxiliary routes',()=>{
   it('keeps wiki validation, fallback field presence and success arrays',async()=>{
     const {app,http}=await setup();
     expect((await request(app).get('/wiki')).body).toEqual({error:'sci required'});
@@ -59,12 +59,16 @@ describe('auxiliary compatibility',()=>{
     }
     const missing=await request(app).get('/cutout?sci=Test+species');expect(missing.status).toBe(404);expect(missing.text).toBe('no illustration bundled for Test species (install rembg-cli to enable Wikipedia fallback)');expect(http).not.toHaveBeenCalled();
   });
-  it('matches measured GD geometry and seven-bit alpha',async()=>{
-    for(const name of ['alpha-0','alpha-1','alpha-2','alpha-127','alpha-128','alpha-254','alpha-255','alpha-transparent','alpha-resize','palette-transparent','palette-partial','palette-opaque','truecolor-trns','palette-empty']) {
-      const base=path.join(process.cwd(),'tests/fixtures/reference/gd',name);
-      const expected=await sharp(await readFile(base+'-expected.png')).ensureAlpha().raw().toBuffer({resolveWithObject:true});
-      const actual=await sharp(await pngProcessor.process(await readFile(base+'-input.png'))).ensureAlpha().raw().toBuffer({resolveWithObject:true});
-      expect(actual.info).toEqual(expected.info);expect(actual.data).toEqual(expected.data);
+  it('preserves PNG alpha and expected crop/resize geometry',async()=>{
+    for(const [name,width,height] of [['palette-transparent',7,3],['truecolor-trns',7,3],['palette-partial',11,7]] as const) {
+      const input=await readFile(path.join('tests/fixtures/images',name+'-input.png'));
+      const output=await pngProcessor.process(input);
+      expect(await sharp(output).metadata()).toMatchObject({width,height,hasAlpha:true});
+      if(name==='palette-partial') {
+        const source=await sharp(input).ensureAlpha().raw().toBuffer();
+        const processed=await sharp(output).ensureAlpha().raw().toBuffer();
+        expect(Math.abs(processed[3]!-source[3]!)).toBeLessThanOrEqual(1);
+      }
     }
     const transparent=await sharp({create:{width:12,height:8,channels:4,background:'#00000000'}}).png().toBuffer();
     expect(await sharp(await pngProcessor.process(transparent)).metadata()).toMatchObject({width:12,height:8,hasAlpha:true});

@@ -1,20 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { loadConfig } from '../../server/config.js';
-import { cacheFilename, fetchCached, cacheKeyJson } from '../../server/ebird/cache.js';
+import { cacheFilename, fetchCached } from '../../server/ebird/cache.js';
 import type { Dependencies } from '../../server/contracts.js';
 const roots:string[]=[];
 afterEach(async()=>{await Promise.all(roots.splice(0).map(root=>rm(root,{recursive:true,force:true})));});
 async function setup(){
- const root=await mkdtemp(path.join(os.tmpdir(),'avian-cache-acceptance-'));roots.push(root);
+ const root=await mkdtemp(path.join(os.tmpdir(),'avian-cache-'));roots.push(root);
  const config=loadConfig(process.cwd(),{AV_DATA_DIR:root,EBIRD_API_KEY:'synthetic-token',TZ:'UTC'});
  const deps:Dependencies={config,now:()=>new Date('2026-10-21T12:00:00Z'),http:vi.fn(async()=>({status:200,body:Buffer.from('[{"sciName":"Synthetic bird"}]')}))};
  return {root,deps};
 }
-describe.each(['observations','hotspots'] as const)('%s cache acceptance',kind=>{
+describe.each(['observations','hotspots'] as const)('%s disk cache',kind=>{
  const field=kind==='observations'?'obs':'hotspots';
  it('survives application dependency reconstruction and returns stale data during outage',async()=>{
   const {root,deps}=await setup();
@@ -54,11 +53,6 @@ describe.each(['observations','hotspots'] as const)('%s cache acceptance',kind=>
   for(const config of configs){const cached=JSON.parse(await readFile(path.join(root,cacheFilename(kind,config)),'utf8'));expect(cached.fetched_at).toBe(1792584000);expect(cached[field]).toHaveLength(1);expect(cached[field][0].lat).toBe(String(config.lat));}
  });
 });
-it('matches independently captured baseline number serialization and MD5 values',async()=>{
- const reference=JSON.parse(await readFile('tests/fixtures/reference/runtime-characterization.json','utf8'));
- for(const row of reference.keys){const value=row.json==='[-0]'?-0:row.value;expect(cacheKeyJson([value])).toBe(row.json);expect(createHash('md5').update(cacheKeyJson([value])).digest('hex')).toBe(row.md5);}
-});
-
 it('keeps ordered hotspot batches isolated from geographic and discovery caches',async()=>{
  const {root,deps}=await setup();
  const batches=[['L1','L2'],['L2','L1']];

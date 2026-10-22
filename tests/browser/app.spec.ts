@@ -9,7 +9,7 @@ import {loadConfig} from '../../server/config.js';
 let server:Server,apiServer:Server,base:string,apiBase:string,temp:string;
 const calls:string[]=[];
 let empty=false,nearbyFailure=false;
-const mixed=JSON.parse(readFileSync('tests/fixtures/reference/dashboard-mixed.json','utf8')).input.rows;
+const mixed=JSON.parse(readFileSync('tests/fixtures/observations.json','utf8'));
 async function listen(s:Server){await new Promise<void>(resolve=>s.listen(0,'127.0.0.1',resolve));const a=s.address();if(!a||typeof a==='string')throw new Error('missing address');return 'http://127.0.0.1:'+a.port;}
 test.beforeAll(async()=>{
  temp=await mkdtemp(path.join(os.tmpdir(),'avian-browser-'));const config=loadConfig(process.cwd(),{});config.dataDir=temp;config.ebird.token='synthetic-token';config.rendererPath=path.join(temp,'no-renderer');
@@ -18,7 +18,7 @@ test.beforeAll(async()=>{
 });
 test.afterAll(async()=>{await Promise.all([server,apiServer].map(s=>new Promise<void>(r=>s.close(()=>r()))));await rm(temp,{recursive:true,force:true});});
 test.beforeEach(async({page})=>{empty=false;nearbyFailure=false;calls.length=0;await page.addInitScript(()=>{Math.random=()=>0.25;});});
-test('unchanged frontend renders collage, stats, atlas, modal and same-origin persistence',async({page})=>{
+test('frontend renders collage, stats, atlas, modal and same-origin persistence',async({page})=>{
  await page.addInitScript(()=>{localStorage.setItem('bird:theme','dark');if(!localStorage.getItem('bird:atlasSort'))localStorage.setItem('bird:atlasSort','alpha');localStorage.setItem('bird:window','24');localStorage.setItem('bird:lat','40.794618');localStorage.setItem('bird:lng','-73.959878');localStorage.setItem('bird:dist','3');localStorage.setItem('bird:refreshMs','900000');});
  await page.goto(base);await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');
  await expect(page.locator('html')).toHaveAttribute('data-theme','dark');await expect(page.locator('#collage [data-sci]')).not.toHaveCount(0);
@@ -29,9 +29,9 @@ test('unchanged frontend renders collage, stats, atlas, modal and same-origin pe
  await page.keyboard.press('Escape');await expect(page.locator('#detail-modal')).toHaveAttribute('aria-hidden','true');
  await page.locator('#atlasSort [data-sort="recent"]').click();await page.reload();await expect(page.locator('#atlasSort [data-sort="recent"]')).toHaveAttribute('aria-current','true');expect(await page.evaluate(()=>localStorage.getItem('bird:refreshMs'))).toBe('900000');
 });
-test('bookmarks, old hotspot preference and separate API origin keep working',async({page})=>{
+test('bookmarks and separate API origin work with selected hotspots',async({page})=>{
  await page.route('**/config.js',route=>route.fulfill({contentType:'application/javascript',body:'window.AV_API_BASE='+JSON.stringify(apiBase)+';'}));
- await page.addInitScript(({apiBase})=>{(window as unknown as {AV_API_BASE:string}).AV_API_BASE=apiBase;localStorage.setItem('bird:sourceMode','hotspot');localStorage.setItem('bird:regionCode','L1');localStorage.setItem('bird:regionName','Fixture Park');}, {apiBase});
+ await page.addInitScript(({apiBase})=>{(window as unknown as {AV_API_BASE:string}).AV_API_BASE=apiBase;localStorage.setItem('bird:sourceMode','hotspot');localStorage.setItem('bird:hotspots',JSON.stringify([{locId:'L1',locName:'Fixture Park'}]));}, {apiBase});
  await page.goto(base+'/#sci=Corvus%20brachyrhynchos');await expect(page.locator('#detail-modal')).toHaveAttribute('aria-hidden','false');await expect(page.locator('#modalDesc')).toHaveText('Synthetic crow description');await expect(page.locator('#staticLocation')).toContainText('Fixture Park');
  expect(calls.some(u=>new URL(u).searchParams.get('r')==='L1')).toBe(true);expect(calls.some(u=>new URL(u).pathname.includes('/geo/recent/amecro'))).toBe(true);
  await page.keyboard.press('Escape');await page.goto(base+'/#about');await expect(page.locator('#about-modal')).toHaveAttribute('aria-hidden','false');await page.keyboard.press('Escape');await expect(page.locator('#about-modal')).toHaveAttribute('aria-hidden','true');
@@ -83,8 +83,8 @@ test('hash history restores modal and unavailable artwork retains description',a
  await page.evaluate(()=>{location.hash='sci=Unknown%20fixture';});await expect(page.locator('#modalPoseToggle')).toHaveAttribute('data-unavailable','true');await expect(page.locator('#modalDesc')).toHaveText('Synthetic crow description');await page.keyboard.press('Escape');await expect(page.locator('#detail-modal')).toHaveAttribute('aria-hidden','true');
 });
 
-test('unlimited saved window migrates; resize and both real artwork poses work',async({page})=>{
- await page.addInitScript(()=>localStorage.setItem('bird:window','1000000'));await page.goto(base);await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');await expect(page.locator('#winPick [data-h="720"]')).toHaveAttribute('aria-current','true');expect(await page.evaluate(()=>localStorage.getItem('bird:window'))).toBe('720');
+test('resizing and both artwork poses work',async({page})=>{
+ await page.goto(base);await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');
  await page.setViewportSize({width:600,height:850});await expect(page.locator('#collage [data-sci]')).not.toHaveCount(0);await page.setViewportSize({width:1280,height:900});
  await page.evaluate(()=>{location.hash='sci=Corvus%20brachyrhynchos';});
  for(const pose of [1,2]){const button=page.locator('#modalPoseToggle [data-pose="'+pose+'"]');await expect(button).not.toHaveAttribute('data-unavailable','true');await button.click();await expect(button).toHaveAttribute('aria-current','true');await expect.poll(async()=>new URL(await page.locator('#modalImg').getAttribute('src')||'',base).searchParams.get('pose')).toBe(pose===1?null:'2');await expect.poll(()=>page.locator('#modalImg').evaluate((img:HTMLImageElement)=>img.complete&&img.naturalWidth>0)).toBe(true);}

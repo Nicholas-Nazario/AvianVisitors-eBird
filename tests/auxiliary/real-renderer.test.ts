@@ -13,7 +13,7 @@ it.skipIf(!process.env.AV_REAL_REMBG)('executes a real u2netp renderer and cache
   const root=await mkdtemp(path.join(os.tmpdir(),'avian-real-renderer-'));
   try {
     const config=loadConfig(root,{AV_REMBG_PATH:process.env.AV_REAL_REMBG});
-    const photo=await readFile('tests/fixtures/reference/gd/alpha-resize-input.png');
+    const photo=await readFile('tests/fixtures/images/alpha-resize-input.png');
     const app=express();app.set('query parser',parseQuery);app.use('/',createCutoutRouter({config,now:()=>new Date(),http:async url=>({status:200,body:url.includes('/summary/')?Buffer.from('{"originalimage":{"source":"https://upload.wikimedia.org/synthetic.png"}}'):photo})}));
     const response=await request(app).get('/?sci=Test+species');expect(response.status).toBe(200);
     expect(await sharp(response.body).metadata()).toMatchObject({width:800,height:403,hasAlpha:true});

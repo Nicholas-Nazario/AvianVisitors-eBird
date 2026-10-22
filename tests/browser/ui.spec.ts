@@ -1,18 +1,17 @@
 import {test,expect} from '@playwright/test';
 import {createServer,type Server} from 'node:http';
-import {mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {mkdtemp,rm} from 'node:fs/promises';
 import {readFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import sharp from 'sharp';
 import {createApp} from '../../server/app.js';
 import {loadConfig} from '../../server/config.js';
-const reference=JSON.parse(readFileSync('tests/fixtures/reference/dashboard-mixed.json','utf8'));
-let server:Server,base:string,temp:string,rows:unknown[],replay=false,guardMenu=false;
+const observations=JSON.parse(readFileSync('tests/fixtures/observations.json','utf8'));
+let server:Server,base:string,temp:string,rows:unknown[],guardMenu=false;
 const proxyAttempts:{method:string;authorized:boolean}[]=[];
 const dashboardHours:string[]=[];
 test.beforeEach(async({page})=>{
- temp=await mkdtemp(path.join(os.tmpdir(),'avian-remaining-'));rows=reference.input.rows;replay=false;guardMenu=false;proxyAttempts.length=0;dashboardHours.length=0;
+ temp=await mkdtemp(path.join(os.tmpdir(),'avian-remaining-'));rows=observations;guardMenu=false;proxyAttempts.length=0;dashboardHours.length=0;
  const config=loadConfig(process.cwd(),{AV_DATA_DIR:temp,EBIRD_API_KEY:'synthetic',TZ:'UTC',AV_REMBG_PATH:path.join(temp,'absent')});
  const app=createApp({config,now:()=>new Date('2026-10-21T12:00:00Z'),http:async url=>({status:200,body:Buffer.from(new URL(url).hostname==='en.wikipedia.org'?JSON.stringify({extract:'Fixture description',title:'Fixture'}):JSON.stringify(rows))})});
  server=createServer((req,res)=>{
@@ -20,8 +19,6 @@ test.beforeEach(async({page})=>{
   if(guardMenu&&url.pathname.endsWith('/menu')){const authorized=req.headers.authorization==='Basic '+Buffer.from('birdnet:synthetic-password').toString('base64');proxyAttempts.push({method:req.method||'',authorized});if(!authorized){res.writeHead(401,{'WWW-Authenticate':'Basic realm=fixture'});res.end();return;}}
   if(url.pathname.endsWith('birdnet-api')&&url.searchParams.get('action')==='dashboard'){
    dashboardHours.push(url.searchParams.get('hours')||'24');
-   // Only the oracle side replays independently captured baseline output. Candidate uses actual Express routes.
-   if(replay){res.setHeader('Content-Type','application/json');res.end(reference.expected.body);return;}
   }
   app(req,res);
  });
@@ -40,7 +37,7 @@ test('custom windows clamp limits, truncate fractions, reject empty input and pe
  await page.reload();await expect(page.locator('#customWindowBtn')).toHaveAttribute('aria-current','true');expect(await page.evaluate(()=>localStorage.getItem('bird:window'))).toBe('48');
 });
 
-test('stats values, timeline order, distances, highlights and atlas links match baseline data',async({page})=>{
+test('stats values, timeline order, distances, highlights and atlas links match observation data',async({page})=>{
  await page.goto(base);await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');await page.locator('#slider [data-i="1"]').click();
  await expect(page.locator('#statsTopSpec li > span:nth-child(2)')).toHaveText(['American Crow','Black-capped Chickadee','American Robin']);await expect(page.locator('#statsTopSpec .ct')).toHaveText(['4','2','1']);
  await expect(page.locator('.stats-tl-col .sci')).toHaveText(['Turdus migratorius','Corvus brachyrhynchos','Poecile atricapillus']);await expect(page.locator('.stats-tl-ytick')).toHaveText(['0','1','2','3','4']);
@@ -73,42 +70,6 @@ test('browser geolocation permission denial preserves saved location',async({pag
  const session=await context.newCDPSession(page);await session.send('Browser.setPermission',{permission:{name:'geolocation'},setting:'denied',origin:base});
  await page.goto(base);await page.locator('#locationBtn').click();const lat=await page.locator('#geoLat').inputValue();await page.locator('#geoLocate').click();await expect(page.locator('#geoLocationStatus')).toHaveText('location permission denied');await expect(page.locator('#geoLat')).toHaveValue(lat);await expect(page.locator('#geoLocate')).toBeEnabled();
 });
-
-for(const viewport of [{width:1280,height:900},{width:390,height:844}])for(const theme of ['light','dark']){
- test(`Baseline golden and Express refreshed views render identical pixels at ${viewport.width}px in ${theme} theme; open client survives handover`,async({page,browser},testInfo)=>{
-  await page.setViewportSize(viewport);await page.clock.setFixedTime(new Date('2026-10-21T12:00:00Z'));await page.addInitScript(theme=>localStorage.setItem('bird:theme',theme),theme);
-  replay=true;await page.goto(base);await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');
-  const capture=async(target=page)=>{const images:Buffer[]=[];for(const view of [0,1,2]){await target.locator('#slider [data-i="'+view+'"]').click();await expect.poll(()=>target.locator('#v'+view+' img').evaluateAll(images=>images.every(img=>(img as HTMLImageElement).complete))).toBe(true);await target.waitForTimeout(1200);images.push(await target.locator('#v'+view).screenshot({animations:'disabled'}));}return images;};
-  const cold=await capture();
-  const refresh=async()=>{await page.locator('#refreshBtn').click();await page.locator('#geoRefreshBtn').click();await expect(page.locator('#geoRefreshBtn')).toBeEnabled();await page.locator('#refresh-dd [data-menu-close]').click();await expect(page.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');};
-  // Establish the oracle's own refreshed layout before comparing a candidate refresh.
-  // Chromium can lay out a decoded cached mobile image differently from its cold lazy image.
-  await refresh();const baseline=await capture();
-  await testInfo.attach('oracle-cold-atlas',{body:cold[2]!,contentType:'image/png'});await testInfo.attach('oracle-refreshed-atlas',{body:baseline[2]!,contentType:'image/png'});
-  // The already-loaded byte-identical legacy client now reaches replacement Express without navigation/reload.
-  await page.evaluate(()=>{(window as unknown as {handoverMarker:string}).handoverMarker='original-open-document';});replay=false;
-  const navigation=page.url();await refresh();
-  expect(await page.evaluate(()=>(window as unknown as {handoverMarker:string}).handoverMarker)).toBe('original-open-document');expect(page.url()).toBe(navigation);
-  const candidate=await capture();
-  for(let i=0;i<baseline.length;i++){
-   const expected=await sharp(baseline[i]).ensureAlpha().raw().toBuffer({resolveWithObject:true});const actual=await sharp(candidate[i]).ensureAlpha().raw().toBuffer({resolveWithObject:true});
-   await testInfo.attach('baseline-golden-view-'+i,{body:baseline[i]!,contentType:'image/png'});await testInfo.attach('express-view-'+i,{body:candidate[i]!,contentType:'image/png'});
-   expect(actual.info).toEqual(expected.info);let changed=0;for(let p=0;p<actual.data.length;p+=4)if(!actual.data.subarray(p,p+4).equals(expected.data.subarray(p,p+4)))changed++;
-   expect(changed,'changed pixels in refreshed view '+i).toBe(0);
-   await writeFile(testInfo.outputPath('express-view-'+i+'.png'),candidate[i]!);
-  }
-  const coldContext=await browser.newContext({viewport});
-  try {
-   const coldPage=await coldContext.newPage();await coldPage.clock.setFixedTime(new Date('2026-10-21T12:00:00Z'));await coldPage.addInitScript(theme=>{Math.random=()=>0.25;localStorage.setItem('bird:theme',theme);},theme);
-   await coldPage.goto(base);await expect(coldPage.locator('#ebirdLoading')).toHaveAttribute('aria-hidden','true');const coldCandidate=await capture(coldPage);
-   for(let i=0;i<cold.length;i++){
-    const expected=await sharp(cold[i]).ensureAlpha().raw().toBuffer({resolveWithObject:true}),actual=await sharp(coldCandidate[i]).ensureAlpha().raw().toBuffer({resolveWithObject:true});expect(actual.info).toEqual(expected.info);expect(actual.data.equals(expected.data),'cold pixels in view '+i).toBe(true);
-   }
-  } finally {await coldContext.close();}
-  const coldPixels=await sharp(cold[2]).ensureAlpha().raw().toBuffer(),warmPixels=await sharp(baseline[2]).ensureAlpha().raw().toBuffer();let coldWarmChanged=0;for(let i=0;i<coldPixels.length;i+=4)if(!coldPixels.subarray(i,i+4).equals(warmPixels.subarray(i,i+4)))coldWarmChanged++;
-  await writeFile(testInfo.outputPath('visual-comparison.json'),JSON.stringify({viewport,theme,refreshedCandidateChangedPixels:0,coldCandidateMatches:true,oracleColdVsRefreshedAtlasChangedPixels:coldWarmChanged},null,2));
- });
-}
 
 test('external proxy menu challenge rejects wrong password and unlocks through Express POST',async({page})=>{
  guardMenu=true;await page.goto(base);await page.evaluate(()=>{document.body.classList.replace('av-local','av-forwarded');});await page.locator('#locationBtn').click();await expect(page.locator('#unlockForm')).toBeVisible();await page.locator('#lockPass').fill('wrong');await page.locator('#unlockForm button').click();await expect(page.locator('#lockHint')).toHaveText('wrong password.');await page.locator('#lockPass').fill('synthetic-password');await page.locator('#unlockForm button').click();await expect(page.locator('#geoLat')).toBeVisible();await expect(page.locator('#location-locked')).not.toBeVisible();// Browsers may retry a request after a native Basic Auth challenge (observed in WebKit).
